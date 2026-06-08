@@ -1,0 +1,40 @@
+@model ClinicDashboardViewModel
+@{
+    ViewData["Title"] = "Trang chu";
+}
+
+<div class="page-title">
+    <div>
+        <h1>Tong quan phong kham</h1>
+        <div class="text-muted">Theo doi benh nhan, lich hen, kho thuoc va doanh thu trong ngay.</div>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric"><span>Ho so benh nhan</span><strong>@Model.Patients</strong></div>
+    <div class="metric"><span>Bac si</span><strong>@Model.Doctors</strong></div>
+    <div class="metric"><span>Lich hen hom nay</span><strong>@Model.AppointmentsToday</strong></div>
+    <div class="metric"><span>Thuoc sap het</span><strong>@Model.LowStockMedicines</strong></div>
+    <div class="metric"><span>Doanh thu thang</span><strong>@Model.RevenueThisMonth.ToString("N0") đ</strong></div>
+</div>
+
+<div class="panel">
+    <h2>Lich hen gan nhat</h2>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>Thoi gian</th><th>Benh nhan</th><th>Bac si</th><th>Ly do</th><th>Trang thai</th></tr></thead>
+            <tbody>
+            @foreach (var item in Model.UpcomingAppointments)
+            {
+                <tr>
+                    <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>@item.Patient?.FullName</td>
+                    <td>@item.Doctor?.FullName</td>
+                    <td>@item.Reason</td>
+                    <td><span class="badge badge-soft">@item.Status</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,14 @@
+@{ ViewData["Title"] = "Bao cao doanh thu"; }
+<div class="page-title"><h1>Bao cao doanh thu</h1></div>
+<div class="metric-grid">
+    <div class="metric"><span>Doanh thu kham benh</span><strong>@(((decimal)ViewBag.AppointmentRevenue).ToString("N0")) đ</strong></div>
+    <div class="metric"><span>Doanh thu don thuoc</span><strong>@(((decimal)ViewBag.PrescriptionRevenue).ToString("N0")) đ</strong></div>
+    <div class="metric"><span>Tong doanh thu</span><strong>@(((decimal)ViewBag.TotalRevenue).ToString("N0")) đ</strong></div>
+</div>
+<div class="panel">
+    <h2>Giao dich gan day</h2>
+    <table class="table"><thead><tr><th>Nguon</th><th>Ngay</th><th>Benh nhan</th><th>So tien</th></tr></thead><tbody>
+    @foreach (Appointment x in ViewBag.Appointments){<tr><td>Phi kham</td><td>@x.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.Fee.ToString("N0") đ</td></tr>}
+    @foreach (Prescription x in ViewBag.Prescriptions){<tr><td>Don thuoc</td><td>@x.CreatedAt.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.TotalAmount.ToString("N0") đ</td></tr>}
+    </tbody></table>
+</div>

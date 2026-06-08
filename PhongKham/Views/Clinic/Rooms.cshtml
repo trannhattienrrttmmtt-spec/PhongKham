@@ -1,0 +1,15 @@
+@model List<Room>
+@{ ViewData["Title"] = "Quan ly phong benh"; }
+<div class="page-title"><h1>Quan ly phong benh</h1></div>
+<div class="panel">
+    <h2>Them phong</h2>
+    <form asp-action="AddRoom" method="post" class="form-grid">
+        <input name="RoomNumber" class="form-control" placeholder="So phong" required />
+        <input name="Department" class="form-control" placeholder="Khoa/phong ban" />
+        <input name="Capacity" type="number" class="form-control" placeholder="Suc chua" value="1" />
+        <input name="OccupiedBeds" type="number" class="form-control" placeholder="Giuong dang dung" value="0" />
+        <select name="Status" class="form-select"><option>San sang</option><option>Day phong</option><option>Bao tri</option><option>Uu tien</option></select>
+        <button class="btn btn-primary">Luu phong</button>
+    </form>
+</div>
+<div class="panel"><h2>Tinh trang phong</h2><table class="table"><thead><tr><th>Phong</th><th>Khoa</th><th>Suc chua</th><th>Dang dung</th><th>Con trong</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.RoomNumber</td><td>@x.Department</td><td>@x.Capacity</td><td>@x.OccupiedBeds</td><td>@(x.Capacity - x.OccupiedBeds)</td><td><span class="badge badge-soft">@x.Status</span></td></tr>}</tbody></table></div>

@@ -1,0 +1,14 @@
+@model List<Doctor>
+@{ ViewData["Title"] = "Danh sach bac si"; }
+<div class="page-title"><h1>Danh sach bac si</h1></div>
+<div class="panel">
+    <h2>Them bac si</h2>
+    <form asp-action="AddDoctor" method="post" class="form-grid">
+        <input name="FullName" class="form-control" placeholder="Ho ten bac si" required />
+        <input name="Specialty" class="form-control" placeholder="Chuyen khoa" />
+        <input name="Phone" class="form-control" placeholder="Dien thoai" />
+        <select name="Status" class="form-select"><option>Dang lam viec</option><option>Nghi phep</option><option>Tam ngung</option></select>
+        <button class="btn btn-primary">Luu bac si</button>
+    </form>
+</div>
+<div class="panel"><h2>Bac si hien co</h2><table class="table"><thead><tr><th>Ho ten</th><th>Chuyen khoa</th><th>Dien thoai</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.FullName</td><td>@x.Specialty</td><td>@x.Phone</td><td><span class="badge badge-soft">@x.Status</span></td></tr>}</tbody></table></div>

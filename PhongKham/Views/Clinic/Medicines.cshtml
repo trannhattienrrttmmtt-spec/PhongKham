@@ -1,0 +1,15 @@
+@model List<Medicine>
+@{ ViewData["Title"] = "Kho thuoc"; }
+<div class="page-title"><h1>Kho thuoc</h1></div>
+<div class="panel">
+    <h2>Nhap thuoc</h2>
+    <form asp-action="AddMedicine" method="post" class="form-grid">
+        <input name="Name" class="form-control" placeholder="Ten thuoc" required />
+        <input name="Unit" class="form-control" placeholder="Don vi" value="Vien" />
+        <input name="QuantityInStock" type="number" class="form-control" placeholder="So luong" />
+        <input name="UnitPrice" type="number" class="form-control" placeholder="Don gia" />
+        <input name="ExpiryDate" type="date" class="form-control" />
+        <button class="btn btn-primary">Luu thuoc</button>
+    </form>
+</div>
+<div class="panel"><h2>Ton kho</h2><table class="table"><thead><tr><th>Thuoc</th><th>Don vi</th><th>So luong</th><th>Don gia</th><th>Han dung</th><th>Canh bao</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.Name</td><td>@x.Unit</td><td>@x.QuantityInStock</td><td>@x.UnitPrice.ToString("N0") đ</td><td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td><td>@(x.QuantityInStock < 30 ? "Sap het" : "On dinh")</td></tr>}</tbody></table></div>

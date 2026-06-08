@@ -1,0 +1,101 @@
+html { font-size: 14px; }
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+  background: #f4f7f8;
+  color: #1d2b2f;
+}
+
+.clinic-nav {
+  background: #ffffff;
+  border-bottom: 1px solid #dbe5e7;
+  box-shadow: 0 8px 24px rgba(33, 57, 64, .06);
+}
+
+.clinic-nav .nav-link {
+  color: #365257;
+  font-weight: 600;
+  padding: .6rem .75rem;
+}
+
+.clinic-nav .nav-link:hover { color: #0a7c86; }
+
+.app-shell {
+  max-width: 1440px;
+  padding: 24px;
+}
+
+.page-title {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.page-title h1 {
+  font-size: 1.7rem;
+  margin: 0;
+}
+
+.metric-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-bottom: 20px;
+}
+
+.metric, .panel {
+  background: #fff;
+  border: 1px solid #dbe5e7;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(33, 57, 64, .06);
+}
+
+.metric { padding: 18px; }
+.metric span { color: #667b80; display: block; font-size: .86rem; }
+.metric strong { color: #0f5961; display: block; font-size: 1.55rem; margin-top: 8px; }
+
+.panel { padding: 18px; margin-bottom: 18px; }
+.panel h2 { font-size: 1.1rem; margin-bottom: 14px; }
+
+.table { margin-bottom: 0; }
+.table thead th {
+  color: #476167;
+  font-size: .78rem;
+  text-transform: uppercase;
+}
+
+.form-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.form-grid .wide { grid-column: 1 / -1; }
+.btn-primary { background: #0a7c86; border-color: #0a7c86; }
+.badge-soft { background: #e7f5f4; color: #0a646d; }
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}

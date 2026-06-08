@@ -1,0 +1,16 @@
+@model List<Appointment>
+@{ ViewData["Title"] = "Quan ly lich hen"; var patients = (List<Patient>)ViewBag.Patients; var doctors = (List<Doctor>)ViewBag.Doctors; }
+<div class="page-title"><h1>Quan ly lich hen</h1></div>
+<div class="panel">
+    <h2>Dat lich hen</h2>
+    <form asp-action="AddAppointment" method="post" class="form-grid">
+        <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+        <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName - @d.Specialty</option>}</select>
+        <input name="AppointmentTime" type="datetime-local" class="form-control" />
+        <input name="Fee" type="number" class="form-control" placeholder="Phi kham" value="150000" />
+        <input name="Reason" class="form-control wide" placeholder="Ly do kham" />
+        <select name="Status" class="form-select"><option>Da dat lich</option><option>Da xac nhan</option><option>Dang cho</option><option>Hoan tat</option><option>Huy</option></select>
+        <button class="btn btn-primary">Luu lich hen</button>
+    </form>
+</div>
+<div class="panel"><h2>Danh sach lich hen</h2><table class="table"><thead><tr><th>Thoi gian</th><th>Benh nhan</th><th>Bac si</th><th>Ly do</th><th>Phi</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td><td>@x.Patient?.FullName</td><td>@x.Doctor?.FullName</td><td>@x.Reason</td><td>@x.Fee.ToString("N0") đ</td><td><span class="badge badge-soft">@x.Status</span></td></tr>}</tbody></table></div>

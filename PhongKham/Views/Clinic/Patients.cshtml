@@ -1,0 +1,18 @@
+@model List<Patient>
+@{
+    ViewData["Title"] = "Ho so benh nhan";
+}
+<div class="page-title"><h1>Ho so benh nhan</h1></div>
+<div class="panel">
+    <h2>Them benh nhan</h2>
+    <form asp-action="AddPatient" method="post" class="form-grid">
+        <input name="FullName" class="form-control" placeholder="Ho ten" required />
+        <select name="Gender" class="form-select"><option>Nam</option><option>Nu</option></select>
+        <input name="DateOfBirth" type="date" class="form-control" />
+        <input name="Phone" class="form-control" placeholder="Dien thoai" />
+        <input name="InsuranceCode" class="form-control" placeholder="Ma BHYT" />
+        <input name="Address" class="form-control wide" placeholder="Dia chi" />
+        <button class="btn btn-primary">Luu benh nhan</button>
+    </form>
+</div>
+<partial name="_PatientsTable" model="Model" />

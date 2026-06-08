@@ -1,0 +1,15 @@
+@model List<MedicalRecord>
+@{ ViewData["Title"] = "Ho so benh an"; var patients = (List<Patient>)ViewBag.Patients; var doctors = (List<Doctor>)ViewBag.Doctors; }
+<div class="page-title"><h1>Ho so benh an</h1></div>
+<div class="panel">
+    <h2>Tao benh an</h2>
+    <form asp-action="AddMedicalRecord" method="post" class="form-grid">
+        <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+        <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
+        <input name="Symptoms" class="form-control" placeholder="Trieu chung" />
+        <input name="Diagnosis" class="form-control" placeholder="Chan doan" />
+        <textarea name="TreatmentPlan" class="form-control wide" placeholder="Phac do dieu tri"></textarea>
+        <button class="btn btn-primary">Luu benh an</button>
+    </form>
+</div>
+<div class="panel"><h2>Lich su benh an</h2><table class="table"><thead><tr><th>Ngay kham</th><th>Benh nhan</th><th>Bac si</th><th>Trieu chung</th><th>Chan doan</th><th>Dieu tri</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.VisitDate.ToString("dd/MM/yyyy HH:mm")</td><td>@x.Patient?.FullName</td><td>@x.Doctor?.FullName</td><td>@x.Symptoms</td><td>@x.Diagnosis</td><td>@x.TreatmentPlan</td></tr>}</tbody></table></div>

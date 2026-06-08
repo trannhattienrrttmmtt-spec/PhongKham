@@ -1,0 +1,15 @@
+@model List<Patient>
+<div class="panel">
+    <h2>Danh sach benh nhan</h2>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead><tr><th>Ho ten</th><th>Gioi tinh</th><th>Ngay sinh</th><th>Dien thoai</th><th>BHYT</th><th>Dia chi</th></tr></thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                <tr><td>@item.FullName</td><td>@item.Gender</td><td>@item.DateOfBirth.ToString("dd/MM/yyyy")</td><td>@item.Phone</td><td>@item.InsuranceCode</td><td>@item.Address</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
