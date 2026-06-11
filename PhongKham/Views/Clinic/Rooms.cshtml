@@ -1,15 +1,46 @@
 @model List<Room>
-@{ ViewData["Title"] = "Quan ly phong benh"; }
-<div class="page-title"><h1>Quan ly phong benh</h1></div>
+@{ ViewData["Title"] = "Phòng bệnh"; }
+
+<div class="page-title">
+    <div>
+        <h1>Phòng bệnh</h1>
+        <div class="text-muted">Theo dõi sức chứa, giường đang dùng và trạng thái từng phòng.</div>
+    </div>
+</div>
+
 <div class="panel">
-    <h2>Them phong</h2>
+    <div class="panel-head">
+        <div>
+            <h2>Thêm phòng</h2>
+            <p>Khai báo phòng khám, phòng điều trị hoặc phòng nội trú.</p>
+        </div>
+    </div>
     <form asp-action="AddRoom" method="post" class="form-grid">
-        <input name="RoomNumber" class="form-control" placeholder="So phong" required />
+        <input name="RoomNumber" class="form-control" placeholder="Số phòng" required />
         <input name="Department" class="form-control" placeholder="Khoa/phong ban" />
-        <input name="Capacity" type="number" class="form-control" placeholder="Suc chua" value="1" />
-        <input name="OccupiedBeds" type="number" class="form-control" placeholder="Giuong dang dung" value="0" />
-        <select name="Status" class="form-select"><option>San sang</option><option>Day phong</option><option>Bao tri</option><option>Uu tien</option></select>
-        <button class="btn btn-primary">Luu phong</button>
+        <input name="Capacity" type="number" class="form-control" placeholder="Sức chứa" value="1" />
+        <input name="OccupiedBeds" type="number" class="form-control" placeholder="Giường đang dùng" value="0" />
+        <select name="Status" class="form-select"><option>Sẵn sàng</option><option>Đầy phòng</option><option>Bảo trì</option><option>Ưu tiên</option></select>
+        <button class="btn btn-primary">Lưu phòng</button>
     </form>
 </div>
-<div class="panel"><h2>Tinh trang phong</h2><table class="table"><thead><tr><th>Phong</th><th>Khoa</th><th>Suc chua</th><th>Dang dung</th><th>Con trong</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.RoomNumber</td><td>@x.Department</td><td>@x.Capacity</td><td>@x.OccupiedBeds</td><td>@(x.Capacity - x.OccupiedBeds)</td><td><span class="badge badge-soft">@x.Status</span></td></tr>}</tbody></table></div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Tình trạng phòng</h2>
+            <p>Cân bằng phòng trống và phòng đang sử dụng.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Phòng</th><th>Khoa</th><th>Sức chứa</th><th>Đang dùng</th><th>Còn trống</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr><td><strong>@x.RoomNumber</strong></td><td>@x.Department</td><td>@x.Capacity</td><td>@x.OccupiedBeds</td><td>@(x.Capacity - x.OccupiedBeds)</td><td><span class="badge badge-soft">@x.Status</span></td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

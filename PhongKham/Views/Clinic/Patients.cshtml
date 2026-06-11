@@ -1,18 +1,28 @@
 @model List<Patient>
 @{
-    ViewData["Title"] = "Ho so benh nhan";
+    ViewData["Title"] = "Hồ sơ bệnh nhân";
 }
-<div class="page-title"><h1>Ho so benh nhan</h1></div>
+<div class="page-title">
+    <div>
+        <h1>Hồ sơ bệnh nhân</h1>
+        <div class="text-muted">Tiếp nhận, tra cứu và cập nhật thông tin hành chính của bệnh nhân.</div>
+    </div>
+</div>
 <div class="panel">
-    <h2>Them benh nhan</h2>
+    <div class="panel-head">
+        <div>
+            <h2>Thêm bệnh nhân</h2>
+            <p>Nhập thông tin cơ bản để tạo hồ sơ tiếp nhận.</p>
+        </div>
+    </div>
     <form asp-action="AddPatient" method="post" class="form-grid">
-        <input name="FullName" class="form-control" placeholder="Ho ten" required />
-        <select name="Gender" class="form-select"><option>Nam</option><option>Nu</option></select>
+        <input name="FullName" class="form-control" placeholder="Họ tên" required />
+        <select name="Gender" class="form-select"><option>Nam</option><option>Nữ</option></select>
         <input name="DateOfBirth" type="date" class="form-control" />
-        <input name="Phone" class="form-control" placeholder="Dien thoai" />
+        <input name="Phone" class="form-control" placeholder="Điện thoại" />
         <input name="InsuranceCode" class="form-control" placeholder="Ma BHYT" />
-        <input name="Address" class="form-control wide" placeholder="Dia chi" />
-        <button class="btn btn-primary">Luu benh nhan</button>
+        <input name="Address" class="form-control wide" placeholder="Địa chỉ" />
+        <button class="btn btn-primary">Lưu bệnh nhân</button>
     </form>
 </div>
 <partial name="_PatientsTable" model="Model" />

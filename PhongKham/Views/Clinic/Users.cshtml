@@ -1,14 +1,14 @@
 @model List<UserAccount>
-@{ ViewData["Title"] = "Phan quyen nguoi dung"; }
-<div class="page-title"><h1>Phan quyen nguoi dung</h1></div>
+@{ ViewData["Title"] = "Tài khoản người dùng"; }
+<div class="page-title"><h1>Tài khoản người dùng</h1></div>
 <div class="panel">
-    <h2>Them tai khoan</h2>
+    <h2>Thêm tài khoản</h2>
     <form asp-action="AddUser" method="post" class="form-grid">
-        <input name="UserName" class="form-control" placeholder="Ten dang nhap" required />
-        <input name="DisplayName" class="form-control" placeholder="Ten hien thi" />
-        <select name="Role" class="form-select"><option>Quan tri</option><option>Bac si</option><option>Le tan</option><option>Duoc si</option><option>Ke toan</option></select>
-        <select name="IsActive" class="form-select"><option value="true">Dang kich hoat</option><option value="false">Tam khoa</option></select>
-        <button class="btn btn-primary">Luu tai khoan</button>
+        <input name="UserName" class="form-control" placeholder="Tên đăng nhập" required />
+        <input name="DisplayName" class="form-control" placeholder="Tên hiển thị" />
+        <select name="Role" class="form-select"><option>Quản trị</option><option>Bác sĩ</option><option>Lễ tân</option><option>Dược sĩ</option><option>Kế toán</option></select>
+        <select name="IsActive" class="form-select"><option value="true">Đang kích hoạt</option><option value="false">Tạm khóa</option></select>
+        <button class="btn btn-primary">Lưu tài khoản</button>
     </form>
 </div>
-<div class="panel"><h2>Danh sach phan quyen</h2><table class="table"><thead><tr><th>Dang nhap</th><th>Ten hien thi</th><th>Vai tro</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.UserName</td><td>@x.DisplayName</td><td>@x.Role</td><td>@(x.IsActive ? "Dang kich hoat" : "Tam khoa")</td></tr>}</tbody></table></div>
+<div class="panel"><h2>Danh sách tài khoản</h2><table class="table"><thead><tr><th>Đăng nhập</th><th>Tên hiển thị</th><th>Vai trò</th><th>Trạng thái</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.UserName</td><td>@x.DisplayName</td><td>@x.Role</td><td>@(x.IsActive ? "Đang kích hoạt" : "Tạm khóa")</td></tr>}</tbody></table></div>

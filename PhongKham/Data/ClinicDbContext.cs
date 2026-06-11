@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PhongKham.Models;
 
 namespace PhongKham.Data;
 
-public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : DbContext(options)
+public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Doctor> Doctors => Set<Doctor>();
@@ -11,13 +12,49 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : DbCont
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<PrescriptionDetail> PrescriptionDetails => Set<PrescriptionDetail>();
     public DbSet<MedicalRecord> MedicalRecords => Set<MedicalRecord>();
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+    public DbSet<Specialty> Specialties => Set<Specialty>();
+    public DbSet<DoctorSchedule> DoctorSchedules => Set<DoctorSchedule>();
+    public DbSet<MedicineCategory> MedicineCategories => Set<MedicineCategory>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<InventoryReceipt> InventoryReceipts => Set<InventoryReceipt>();
+    public DbSet<InventoryReceiptDetail> InventoryReceiptDetails => Set<InventoryReceiptDetail>();
+    public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<Appointment>().Property(x => x.Fee).HasPrecision(18, 2);
         modelBuilder.Entity<Medicine>().Property(x => x.UnitPrice).HasPrecision(18, 2);
         modelBuilder.Entity<Prescription>().Property(x => x.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<PrescriptionDetail>().Property(x => x.UnitPrice).HasPrecision(18, 2);
+        modelBuilder.Entity<PrescriptionDetail>().Property(x => x.LineTotal).HasPrecision(18, 2);
+        modelBuilder.Entity<InventoryReceipt>().Property(x => x.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<InventoryReceiptDetail>().Property(x => x.UnitCost).HasPrecision(18, 2);
+        modelBuilder.Entity<InventoryReceiptDetail>().Property(x => x.LineTotal).HasPrecision(18, 2);
+        modelBuilder.Entity<Invoice>().Property(x => x.ExaminationFee).HasPrecision(18, 2);
+        modelBuilder.Entity<Invoice>().Property(x => x.MedicineFee).HasPrecision(18, 2);
+        modelBuilder.Entity<Invoice>().Property(x => x.ServiceFee).HasPrecision(18, 2);
+        modelBuilder.Entity<Invoice>().Property(x => x.Discount).HasPrecision(18, 2);
+        modelBuilder.Entity<Invoice>().Property(x => x.TotalAmount).HasPrecision(18, 2);
+        modelBuilder.Entity<Payment>().Property(x => x.Amount).HasPrecision(18, 2);
+
+        modelBuilder.Entity<Patient>().HasIndex(x => x.Phone);
+        modelBuilder.Entity<Doctor>().HasIndex(x => x.Phone);
+        modelBuilder.Entity<Appointment>().HasIndex(x => x.AppointmentTime);
+        modelBuilder.Entity<Room>().HasIndex(x => x.RoomNumber).IsUnique();
+        modelBuilder.Entity<Specialty>().HasIndex(x => x.Code).IsUnique();
+        modelBuilder.Entity<Medicine>().HasIndex(x => x.Name);
+        modelBuilder.Entity<Invoice>().HasIndex(x => x.InvoiceCode).IsUnique();
+
+        modelBuilder.Entity<Room>()
+            .ToTable(t => t.HasCheckConstraint("CK_Room_OccupiedBeds", "[OccupiedBeds] <= [Capacity]"));
     }
 }

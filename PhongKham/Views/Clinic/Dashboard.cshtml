@@ -1,40 +1,112 @@
 @model ClinicDashboardViewModel
 @{
-    ViewData["Title"] = "Trang chu";
+    ViewData["Title"] = "Trang chủ";
+    var roleName = User.IsInRole("Admin") ? "quản trị viên" :
+        User.IsInRole("BacSi") ? "bác sĩ" :
+        User.IsInRole("LeTan") ? "lễ tân" :
+        User.IsInRole("DuocSi") ? "dược sĩ" :
+        User.IsInRole("BenhNhan") ? "bệnh nhân" : "người dùng";
 }
 
-<div class="page-title">
+<section class="welcome-panel">
     <div>
-        <h1>Tong quan phong kham</h1>
-        <div class="text-muted">Theo doi benh nhan, lich hen, kho thuoc va doanh thu trong ngay.</div>
+        <span class="eyebrow">Xin chào @roleName</span>
+        <h1>Hôm nay cần xử lý gì?</h1>
+        <p>Những thông tin quan trọng được gom lại để bạn thao tác nhanh hơn và ít bị rối mắt hơn.</p>
     </div>
+    <div class="page-actions">
+        @if (User.IsInRole("Admin") || User.IsInRole("LeTan") || User.IsInRole("BenhNhan"))
+        {
+            <a class="btn btn-primary" asp-action="Appointments">Đặt lịch khám</a>
+        }
+        @if (User.IsInRole("Admin") || User.IsInRole("LeTan"))
+        {
+            <a class="btn btn-outline-primary" asp-action="Patients">Thêm bệnh nhân</a>
+        }
+        @if (User.IsInRole("BacSi"))
+        {
+            <a class="btn btn-primary" asp-action="MedicalRecords">Tạo bệnh án</a>
+        }
+        @if (User.IsInRole("DuocSi"))
+        {
+            <a class="btn btn-primary" asp-action="Medicines">Kiểm tra kho</a>
+        }
+    </div>
+</section>
+
+<div class="metric-grid friendly-metrics">
+    @if (User.IsInRole("Admin") || User.IsInRole("LeTan") || User.IsInRole("BacSi"))
+    {
+        <div class="metric accent-teal"><span>Bệnh nhân</span><strong>@Model.Patients</strong><small>Hồ sơ đang quản lý</small></div>
+    }
+    @if (User.IsInRole("Admin") || User.IsInRole("LeTan"))
+    {
+        <div class="metric accent-blue"><span>Bác sĩ</span><strong>@Model.Doctors</strong><small>Đang phục vụ</small></div>
+    }
+    <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Cần theo dõi</small></div>
+    @if (User.IsInRole("Admin") || User.IsInRole("DuocSi"))
+    {
+        <div class="metric accent-amber"><span>Thuốc cần bổ sung</span><strong>@Model.LowStockMedicines</strong><small>Dưới mức an toàn</small></div>
+    }
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="metric accent-rose"><span>Doanh thu tháng</span><strong>@Model.RevenueThisMonth.ToString("N0") &#273;</strong><small>Đã ghi nhận</small></div>
+    }
 </div>
 
-<div class="metric-grid">
-    <div class="metric"><span>Ho so benh nhan</span><strong>@Model.Patients</strong></div>
-    <div class="metric"><span>Bac si</span><strong>@Model.Doctors</strong></div>
-    <div class="metric"><span>Lich hen hom nay</span><strong>@Model.AppointmentsToday</strong></div>
-    <div class="metric"><span>Thuoc sap het</span><strong>@Model.LowStockMedicines</strong></div>
-    <div class="metric"><span>Doanh thu thang</span><strong>@Model.RevenueThisMonth.ToString("N0") đ</strong></div>
-</div>
+<div class="dashboard-grid">
+    <div class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Lịch hẹn sắp tới</h2>
+                <p>Danh sách gần nhất để điều phối và theo dõi trạng thái.</p>
+            </div>
+            <a asp-action="Appointments">Mở lịch hẹn</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead><tr><th>Thời gian</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Lý do</th><th>Trạng thái</th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.UpcomingAppointments)
+                {
+                    <tr>
+                        <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td><strong>@item.Patient?.FullName</strong></td>
+                        <td>@item.Doctor?.FullName</td>
+                        <td>@item.Reason</td>
+                        <td><span class="badge badge-soft">@item.Status</span></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<div class="panel">
-    <h2>Lich hen gan nhat</h2>
-    <div class="table-responsive">
-        <table class="table align-middle">
-            <thead><tr><th>Thoi gian</th><th>Benh nhan</th><th>Bac si</th><th>Ly do</th><th>Trang thai</th></tr></thead>
-            <tbody>
-            @foreach (var item in Model.UpcomingAppointments)
+    <div class="panel compact-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Truy cập nhanh</h2>
+                <p>Các việc hay dùng theo vai trò của bạn.</p>
+            </div>
+        </div>
+        <div class="ops-list">
+            @if (User.IsInRole("Admin") || User.IsInRole("LeTan"))
             {
-                <tr>
-                    <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
-                    <td>@item.Patient?.FullName</td>
-                    <td>@item.Doctor?.FullName</td>
-                    <td>@item.Reason</td>
-                    <td><span class="badge badge-soft">@item.Status</span></td>
-                </tr>
+                <a asp-action="Rooms"><span>Phòng bệnh</span><strong>Theo dõi sức chứa</strong></a>
+                <a asp-action="Doctors"><span>Bác sĩ</span><strong>Quản lý lịch làm việc</strong></a>
             }
-            </tbody>
-        </table>
+            @if (User.IsInRole("Admin") || User.IsInRole("DuocSi"))
+            {
+                <a asp-action="Medicines"><span>Kho thuốc</span><strong>Kiểm tra tồn kho</strong></a>
+            }
+            @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("DuocSi"))
+            {
+                <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Theo dõi và xử lý</strong></a>
+            }
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-action="Revenue"><span>Báo cáo</span><strong>Xem doanh thu</strong></a>
+            }
+        </div>
     </div>
 </div>

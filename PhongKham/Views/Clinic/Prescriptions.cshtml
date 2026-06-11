@@ -1,15 +1,50 @@
 @model List<Prescription>
-@{ ViewData["Title"] = "Quan ly don thuoc"; var patients = (List<Patient>)ViewBag.Patients; var doctors = (List<Doctor>)ViewBag.Doctors; }
-<div class="page-title"><h1>Don thuoc</h1></div>
+@{
+    ViewData["Title"] = "Đơn thuốc";
+    var patients = (List<Patient>)ViewBag.Patients;
+    var doctors = (List<Doctor>)ViewBag.Doctors;
+}
+
+<div class="page-title">
+    <div>
+        <h1>Đơn thuốc</h1>
+        <div class="text-muted">Lập đơn, ghi chẩn đoán và theo dõi hướng dẫn dùng thuốc.</div>
+    </div>
+</div>
+
 <div class="panel">
-    <h2>Lap don thuoc</h2>
+    <div class="panel-head">
+        <div>
+            <h2>Lập đơn thuốc</h2>
+            <p>Thông tin đơn thuốc sẽ được dùng cho dược sĩ cấp phát.</p>
+        </div>
+    </div>
     <form asp-action="AddPrescription" method="post" class="form-grid">
         <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
         <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
-        <input name="Diagnosis" class="form-control" placeholder="Chan doan" />
-        <input name="TotalAmount" type="number" class="form-control" placeholder="Tong tien" />
-        <textarea name="Instructions" class="form-control wide" placeholder="Huong dan su dung"></textarea>
-        <button class="btn btn-primary">Luu don thuoc</button>
+        <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+        <input name="TotalAmount" type="number" class="form-control" placeholder="Tổng tiền" />
+        <textarea name="Instructions" class="form-control wide" placeholder="Hướng dẫn sử dụng"></textarea>
+        <button class="btn btn-primary">Lưu đơn thuốc</button>
     </form>
 </div>
-<div class="panel"><h2>Danh sach don thuoc</h2><table class="table"><thead><tr><th>Ngay lap</th><th>Benh nhan</th><th>Bac si</th><th>Chan doan</th><th>Huong dan</th><th>Tong tien</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td><td>@x.Patient?.FullName</td><td>@x.Doctor?.FullName</td><td>@x.Diagnosis</td><td>@x.Instructions</td><td>@x.TotalAmount.ToString("N0") đ</td></tr>}</tbody></table></div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Danh sách đơn thuốc</h2>
+            <p>@Model.Count đơn thuốc đã lập.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Ngày lập</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Chẩn đoán</th><th>Hướng dẫn</th><th>Tổng tiền</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr><td>@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td><td><strong>@x.Patient?.FullName</strong></td><td>@x.Doctor?.FullName</td><td>@x.Diagnosis</td><td>@x.Instructions</td><td>@x.TotalAmount.ToString("N0") &#273;</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

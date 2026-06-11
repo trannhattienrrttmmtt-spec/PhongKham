@@ -29,7 +29,7 @@ public class Doctor
     [StringLength(20)]
     public string Phone { get; set; } = "";
     [StringLength(80)]
-    public string Status { get; set; } = "Dang lam viec";
+    public string Status { get; set; } = "Đang làm việc";
 }
 
 public class Room
@@ -42,7 +42,7 @@ public class Room
     public int Capacity { get; set; } = 1;
     public int OccupiedBeds { get; set; }
     [StringLength(80)]
-    public string Status { get; set; } = "San sang";
+    public string Status { get; set; } = "Sẵn sàng";
 }
 
 public class Appointment
@@ -56,7 +56,7 @@ public class Appointment
     [StringLength(500)]
     public string Reason { get; set; } = "";
     [StringLength(80)]
-    public string Status { get; set; } = "Da dat lich";
+    public string Status { get; set; } = "Đã đặt lịch";
     public decimal Fee { get; set; } = 150000;
 }
 
@@ -66,7 +66,7 @@ public class Medicine
     [Required, StringLength(120)]
     public string Name { get; set; } = "";
     [StringLength(40)]
-    public string Unit { get; set; } = "Vien";
+    public string Unit { get; set; } = "Viên";
     public int QuantityInStock { get; set; }
     public decimal UnitPrice { get; set; }
     [DataType(DataType.Date)]
@@ -112,7 +112,7 @@ public class UserAccount
     [StringLength(120)]
     public string DisplayName { get; set; } = "";
     [StringLength(40)]
-    public string Role { get; set; } = "Le tan";
+    public string Role { get; set; } = "Lễ tân";
     public bool IsActive { get; set; } = true;
 }
 

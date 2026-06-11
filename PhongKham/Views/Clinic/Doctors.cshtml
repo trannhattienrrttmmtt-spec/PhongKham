@@ -1,14 +1,45 @@
 @model List<Doctor>
-@{ ViewData["Title"] = "Danh sach bac si"; }
-<div class="page-title"><h1>Danh sach bac si</h1></div>
+@{ ViewData["Title"] = "Bác sĩ"; }
+
+<div class="page-title">
+    <div>
+        <h1>Bác sĩ</h1>
+        <div class="text-muted">Quản lý thông tin bác sĩ, chuyên khoa và trạng thái làm việc.</div>
+    </div>
+</div>
+
 <div class="panel">
-    <h2>Them bac si</h2>
+    <div class="panel-head">
+        <div>
+            <h2>Thêm bác sĩ</h2>
+            <p>Nhập thông tin cơ bản để xếp lịch và phân công khám.</p>
+        </div>
+    </div>
     <form asp-action="AddDoctor" method="post" class="form-grid">
-        <input name="FullName" class="form-control" placeholder="Ho ten bac si" required />
-        <input name="Specialty" class="form-control" placeholder="Chuyen khoa" />
-        <input name="Phone" class="form-control" placeholder="Dien thoai" />
-        <select name="Status" class="form-select"><option>Dang lam viec</option><option>Nghi phep</option><option>Tam ngung</option></select>
-        <button class="btn btn-primary">Luu bac si</button>
+        <input name="FullName" class="form-control" placeholder="Họ tên bác sĩ" required />
+        <input name="Specialty" class="form-control" placeholder="Chuyên khoa" />
+        <input name="Phone" class="form-control" placeholder="Điện thoại" />
+        <select name="Status" class="form-select"><option>Đang làm việc</option><option>Nghỉ phép</option><option>Tạm ngưng</option></select>
+        <button class="btn btn-primary">Lưu bác sĩ</button>
     </form>
 </div>
-<div class="panel"><h2>Bac si hien co</h2><table class="table"><thead><tr><th>Ho ten</th><th>Chuyen khoa</th><th>Dien thoai</th><th>Trang thai</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.FullName</td><td>@x.Specialty</td><td>@x.Phone</td><td><span class="badge badge-soft">@x.Status</span></td></tr>}</tbody></table></div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Bác sĩ hiện có</h2>
+            <p>@Model.Count bác sĩ trong danh sách.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Họ tên</th><th>Chuyên khoa</th><th>Điện thoại</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr><td><strong>@x.FullName</strong></td><td>@x.Specialty</td><td>@x.Phone</td><td><span class="badge badge-soft">@x.Status</span></td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

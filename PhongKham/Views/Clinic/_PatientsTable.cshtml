@@ -1,9 +1,12 @@
 @model List<Patient>
 <div class="panel">
-    <h2>Danh sach benh nhan</h2>
+    <div class="panel-head">
+        <h2>Danh sách bệnh nhân</h2>
+        <span class="badge badge-soft">@Model.Count hồ sơ</span>
+    </div>
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th>Ho ten</th><th>Gioi tinh</th><th>Ngay sinh</th><th>Dien thoai</th><th>BHYT</th><th>Dia chi</th></tr></thead>
+            <thead><tr><th>Họ tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Điện thoại</th><th>BHYT</th><th>Địa chỉ</th></tr></thead>
             <tbody>
             @foreach (var item in Model)
             {

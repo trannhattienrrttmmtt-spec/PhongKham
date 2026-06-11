@@ -1,15 +1,53 @@
 @model List<Medicine>
-@{ ViewData["Title"] = "Kho thuoc"; }
-<div class="page-title"><h1>Kho thuoc</h1></div>
+@{ ViewData["Title"] = "Kho thuốc"; }
+
+<div class="page-title">
+    <div>
+        <h1>Kho thuốc</h1>
+        <div class="text-muted">Theo dõi tồn kho, hạn dùng và cảnh báo thuốc sắp hết.</div>
+    </div>
+</div>
+
 <div class="panel">
-    <h2>Nhap thuoc</h2>
+    <div class="panel-head">
+        <div>
+            <h2>Nhập thuốc</h2>
+            <p>Bổ sung thuốc mới vào danh sách quản lý.</p>
+        </div>
+    </div>
     <form asp-action="AddMedicine" method="post" class="form-grid">
-        <input name="Name" class="form-control" placeholder="Ten thuoc" required />
-        <input name="Unit" class="form-control" placeholder="Don vi" value="Vien" />
-        <input name="QuantityInStock" type="number" class="form-control" placeholder="So luong" />
-        <input name="UnitPrice" type="number" class="form-control" placeholder="Don gia" />
+        <input name="Name" class="form-control" placeholder="Tên thuốc" required />
+        <input name="Unit" class="form-control" placeholder="Đơn vị" value="Viên" />
+        <input name="QuantityInStock" type="number" class="form-control" placeholder="Số lượng" />
+        <input name="UnitPrice" type="number" class="form-control" placeholder="Đơn giá" />
         <input name="ExpiryDate" type="date" class="form-control" />
-        <button class="btn btn-primary">Luu thuoc</button>
+        <button class="btn btn-primary">Lưu thuốc</button>
     </form>
 </div>
-<div class="panel"><h2>Ton kho</h2><table class="table"><thead><tr><th>Thuoc</th><th>Don vi</th><th>So luong</th><th>Don gia</th><th>Han dung</th><th>Canh bao</th></tr></thead><tbody>@foreach (var x in Model){<tr><td>@x.Name</td><td>@x.Unit</td><td>@x.QuantityInStock</td><td>@x.UnitPrice.ToString("N0") đ</td><td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td><td>@(x.QuantityInStock < 30 ? "Sap het" : "On dinh")</td></tr>}</tbody></table></div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Tồn kho</h2>
+            <p>@Model.Count mặt hàng trong kho.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Thuốc</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Hạn dùng</th><th>Cảnh báo</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr>
+                    <td><strong>@x.Name</strong></td>
+                    <td>@x.Unit</td>
+                    <td>@x.QuantityInStock</td>
+                    <td>@x.UnitPrice.ToString("N0") &#273;</td>
+                    <td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                    <td><span class="badge badge-soft">@(x.QuantityInStock < 30 ? "Sắp hết" : "Ổn định")</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
