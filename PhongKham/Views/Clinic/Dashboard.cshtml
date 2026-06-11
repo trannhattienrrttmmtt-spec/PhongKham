@@ -1,55 +1,87 @@
 @model ClinicDashboardViewModel
 @{
     ViewData["Title"] = "Trang chủ";
-    var roleName = User.IsInRole("Admin") ? "quản trị viên" :
-        User.IsInRole("BacSi") ? "bác sĩ" :
-        User.IsInRole("DuocSi") ? "dược sĩ" :
-        User.IsInRole("BenhNhan") ? "bệnh nhân" : "người dùng";
+    var isAdmin = User.IsInRole("Admin");
+    var isDoctor = User.IsInRole("BacSi");
+    var isPharmacist = User.IsInRole("DuocSi");
+    var isPatient = User.IsInRole("BenhNhan");
+    var roleName = isAdmin ? "quản trị viên" :
+        isDoctor ? "bác sĩ" :
+        isPharmacist ? "dược sĩ" :
+        isPatient ? "bệnh nhân" : "người dùng";
 }
 
-<section class="welcome-panel">
+<section class="welcome-panel role-welcome">
     <div>
         <span class="eyebrow">Xin chào @roleName</span>
-        <h1>Hôm nay cần xử lý gì?</h1>
-        <p>Những thông tin quan trọng được gom lại để bạn thao tác nhanh hơn và ít bị rối mắt hơn.</p>
+        @if (isAdmin)
+        {
+            <h1>Bảng điều hành phòng khám</h1>
+            <p>Theo dõi nhân sự, lịch khám, kho thuốc và doanh thu trong cùng một màn hình.</p>
+        }
+        else if (isDoctor)
+        {
+            <h1>Không gian làm việc của bác sĩ</h1>
+            <p>Tập trung vào bệnh nhân, lịch khám, bệnh án và đơn thuốc cần xử lý trong ngày.</p>
+        }
+        else if (isPharmacist)
+        {
+            <h1>Khu vực dược sĩ</h1>
+            <p>Theo dõi đơn thuốc, thuốc sắp hết và tình trạng tồn kho để cấp phát chính xác.</p>
+        }
+        else
+        {
+            <h1>Cổng bệnh nhân</h1>
+            <p>Đặt lịch khám, xem lịch hẹn và theo dõi thông tin khám của bạn một cách gọn gàng.</p>
+        }
     </div>
     <div class="page-actions">
-        @if (User.IsInRole("Admin") || User.IsInRole("BenhNhan"))
+        @if (isAdmin)
         {
-            <a class="btn btn-primary" asp-action="Appointments">Đặt lịch khám</a>
+            <a class="btn btn-primary" asp-action="Revenue">Xem doanh thu</a>
+            <a class="btn btn-outline-primary" asp-action="Doctors">Quản lý bác sĩ</a>
         }
-        @if (User.IsInRole("Admin"))
-        {
-            <a class="btn btn-outline-primary" asp-action="Patients">Thêm bệnh nhân</a>
-        }
-        @if (User.IsInRole("BacSi"))
+        else if (isDoctor)
         {
             <a class="btn btn-primary" asp-action="MedicalRecords">Tạo bệnh án</a>
+            <a class="btn btn-outline-primary" asp-action="Prescriptions">Lập đơn thuốc</a>
         }
-        @if (User.IsInRole("DuocSi"))
+        else if (isPharmacist)
         {
-            <a class="btn btn-primary" asp-action="Medicines">Kiểm tra kho</a>
+            <a class="btn btn-primary" asp-action="Prescriptions">Xem đơn thuốc</a>
+            <a class="btn btn-outline-primary" asp-action="Medicines">Nhập thuốc</a>
+        }
+        else
+        {
+            <a class="btn btn-primary" asp-action="Appointments">Đặt lịch khám</a>
         }
     </div>
 </section>
 
 <div class="metric-grid friendly-metrics">
-    @if (User.IsInRole("Admin") || User.IsInRole("BacSi"))
+    @if (isAdmin)
     {
         <div class="metric accent-teal"><span>Bệnh nhân</span><strong>@Model.Patients</strong><small>Hồ sơ đang quản lý</small></div>
-    }
-    @if (User.IsInRole("Admin"))
-    {
         <div class="metric accent-blue"><span>Bác sĩ</span><strong>@Model.Doctors</strong><small>Đang phục vụ</small></div>
-    }
-    <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Cần theo dõi</small></div>
-    @if (User.IsInRole("Admin") || User.IsInRole("DuocSi"))
-    {
+        <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Cần điều phối</small></div>
         <div class="metric accent-amber"><span>Thuốc cần bổ sung</span><strong>@Model.LowStockMedicines</strong><small>Dưới mức an toàn</small></div>
-    }
-    @if (User.IsInRole("Admin"))
-    {
         <div class="metric accent-rose"><span>Doanh thu tháng</span><strong>@Model.RevenueThisMonth.ToString("N0") &#273;</strong><small>Đã ghi nhận</small></div>
+    }
+    else if (isDoctor)
+    {
+        <div class="metric accent-green"><span>Lịch khám hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Ưu tiên xử lý</small></div>
+        <div class="metric accent-teal"><span>Hồ sơ bệnh nhân</span><strong>@Model.Patients</strong><small>Tra cứu khi khám</small></div>
+        <div class="metric accent-blue"><span>Đơn thuốc</span><strong>@Model.UpcomingAppointments.Count</strong><small>Gắn với lịch gần nhất</small></div>
+    }
+    else if (isPharmacist)
+    {
+        <div class="metric accent-amber"><span>Thuốc sắp hết</span><strong>@Model.LowStockMedicines</strong><small>Cần nhập bổ sung</small></div>
+        <div class="metric accent-green"><span>Đơn thuốc chờ cấp</span><strong>@Model.UpcomingAppointments.Count</strong><small>Theo lượt khám gần nhất</small></div>
+    }
+    else
+    {
+        <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Kiểm tra trước khi đến khám</small></div>
+        <div class="metric accent-teal"><span>Lịch sắp tới</span><strong>@Model.UpcomingAppointments.Count</strong><small>Các cuộc hẹn đang hiển thị</small></div>
     }
 </div>
 
@@ -57,10 +89,30 @@
     <div class="panel">
         <div class="panel-head">
             <div>
-                <h2>Lịch hẹn sắp tới</h2>
-                <p>Danh sách gần nhất để điều phối và theo dõi trạng thái.</p>
+                @if (isPharmacist)
+                {
+                    <h2>Đơn thuốc cần theo dõi</h2>
+                    <p>Dược sĩ dùng khu vực này để chuyển nhanh sang danh sách đơn thuốc và kho thuốc.</p>
+                }
+                else if (isPatient)
+                {
+                    <h2>Lịch hẹn của bạn</h2>
+                    <p>Các lịch khám liên quan đến tài khoản bệnh nhân đang đăng nhập.</p>
+                }
+                else
+                {
+                    <h2>Lịch hẹn sắp tới</h2>
+                    <p>Danh sách gần nhất để điều phối và theo dõi trạng thái khám.</p>
+                }
             </div>
-            <a asp-action="Appointments">Mở lịch hẹn</a>
+            @if (!isPharmacist)
+            {
+                <a asp-action="Appointments">Mở lịch hẹn</a>
+            }
+            else
+            {
+                <a asp-action="Prescriptions">Mở đơn thuốc</a>
+            }
         </div>
         <div class="table-responsive">
             <table class="table align-middle">
@@ -84,27 +136,32 @@
     <div class="panel compact-panel">
         <div class="panel-head">
             <div>
-                <h2>Truy cập nhanh</h2>
-                <p>Các việc hay dùng theo vai trò của bạn.</p>
+                <h2>Việc cần làm</h2>
+                <p>Đường tắt theo đúng vai trò đang đăng nhập.</p>
             </div>
         </div>
         <div class="ops-list">
-            @if (User.IsInRole("Admin"))
+            @if (isAdmin)
             {
                 <a asp-action="Rooms"><span>Phòng bệnh</span><strong>Theo dõi sức chứa</strong></a>
-                <a asp-action="Doctors"><span>Bác sĩ</span><strong>Quản lý lịch làm việc</strong></a>
-            }
-            @if (User.IsInRole("Admin") || User.IsInRole("DuocSi"))
-            {
-                <a asp-action="Medicines"><span>Kho thuốc</span><strong>Kiểm tra tồn kho</strong></a>
-            }
-            @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("DuocSi"))
-            {
-                <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Theo dõi và xử lý</strong></a>
-            }
-            @if (User.IsInRole("Admin"))
-            {
+                <a asp-action="Users"><span>Tài khoản</span><strong>Quản lý người dùng</strong></a>
                 <a asp-action="Revenue"><span>Báo cáo</span><strong>Xem doanh thu</strong></a>
+            }
+            else if (isDoctor)
+            {
+                <a asp-action="Patients"><span>Bệnh nhân</span><strong>Tra cứu hồ sơ</strong></a>
+                <a asp-action="MedicalRecords"><span>Bệnh án</span><strong>Ghi nhận chẩn đoán</strong></a>
+                <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Lập hướng dẫn dùng thuốc</strong></a>
+            }
+            else if (isPharmacist)
+            {
+                <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Kiểm tra trước khi cấp phát</strong></a>
+                <a asp-action="Medicines"><span>Kho thuốc</span><strong>Cập nhật tồn kho</strong></a>
+            }
+            else
+            {
+                <a asp-action="Appointments"><span>Đặt lịch</span><strong>Chọn bác sĩ và thời gian khám</strong></a>
+                <a asp-action="Appointments"><span>Lịch của tôi</span><strong>Theo dõi trạng thái hẹn khám</strong></a>
             }
         </div>
     </div>

@@ -14,12 +14,12 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     {
         try
         {
-            return View(await dashboardService.GetDashboardAsync());
+            return View(await PersonalizeDashboard(await dashboardService.GetDashboardAsync()));
         }
         catch (Exception ex)
         {
             TempData["DatabaseWarning"] = DatabaseWarning(ex);
-            return View(DemoDashboard());
+            return View(await PersonalizeDashboard(DemoDashboard()));
         }
     }
 
@@ -68,10 +68,27 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     [Authorize(Roles = "Admin,BacSi,BenhNhan")]
     public async Task<IActionResult> Appointments()
     {
-        ViewBag.Patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
+        var patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
+        if (User.IsInRole("BenhNhan"))
+        {
+            var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
+            var patient = patients.FirstOrDefault(x => x.Phone == currentUser?.PhoneNumber)
+                ?? patients.FirstOrDefault(x => x.FullName == currentUser?.FullName);
+            patients = patient is null ? [] : [patient];
+        }
+
+        ViewBag.Patients = patients;
         ViewBag.Doctors = await TryLoad(() => db.Doctors.OrderBy(x => x.FullName).ToListAsync(), DemoDoctors);
-        return View(await TryLoad(() => db.Appointments.Include(x => x.Patient).Include(x => x.Doctor)
-            .OrderByDescending(x => x.AppointmentTime).ToListAsync(), DemoAppointments));
+        var appointments = await TryLoad(() => db.Appointments.Include(x => x.Patient).Include(x => x.Doctor)
+            .OrderByDescending(x => x.AppointmentTime).ToListAsync(), DemoAppointments);
+
+        if (User.IsInRole("BenhNhan"))
+        {
+            var patientIds = patients.Select(x => x.Id).ToHashSet();
+            appointments = appointments.Where(x => x.PatientId == 0 || patientIds.Contains(x.PatientId) || patientIds.Contains(x.Patient?.Id ?? 0)).ToList();
+        }
+
+        return View(appointments);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -80,9 +97,59 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     {
         if (ModelState.IsValid)
         {
+            if (User.IsInRole("BenhNhan"))
+            {
+                var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
+                var patient = currentUser is null
+                    ? null
+                    : await db.Patients.FirstOrDefaultAsync(x => x.Phone == currentUser.PhoneNumber)
+                        ?? await db.Patients.FirstOrDefaultAsync(x => x.FullName == currentUser.FullName);
+                if (patient is not null)
+                {
+                    appointment.PatientId = patient.Id;
+                }
+                appointment.Status = "Đã đặt lịch";
+                appointment.Fee = 150000;
+            }
+
             await TrySave(() => db.Appointments.Add(appointment));
         }
         return RedirectToAction(nameof(Appointments));
+    }
+
+    private async Task<ClinicDashboardViewModel> PersonalizeDashboard(ClinicDashboardViewModel model)
+    {
+        if (!User.IsInRole("BenhNhan"))
+        {
+            return model;
+        }
+
+        var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
+        if (currentUser is null)
+        {
+            model.UpcomingAppointments = [];
+            model.AppointmentsToday = 0;
+            return model;
+        }
+
+        var patient = await db.Patients.FirstOrDefaultAsync(x => x.Phone == currentUser.PhoneNumber)
+            ?? await db.Patients.FirstOrDefaultAsync(x => x.FullName == currentUser.FullName);
+        if (patient is null)
+        {
+            model.UpcomingAppointments = [];
+            model.AppointmentsToday = 0;
+            return model;
+        }
+
+        model.UpcomingAppointments = await TryLoad(
+            () => db.Appointments.Include(x => x.Patient).Include(x => x.Doctor)
+                .Where(x => x.PatientId == patient.Id)
+                .OrderBy(x => x.AppointmentTime)
+                .Take(6)
+                .ToListAsync(),
+            () => DemoAppointments().Where(x => x.Patient?.FullName == patient.FullName).ToList());
+        model.AppointmentsToday = model.UpcomingAppointments.Count(x => x.AppointmentTime.Date == DateTime.Today);
+        return model;
     }
 
     [Authorize(Roles = "Admin,DuocSi")]
