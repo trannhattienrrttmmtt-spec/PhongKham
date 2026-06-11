@@ -11,6 +11,7 @@ public static class ClinicSeeder
         RoleManager<IdentityRole> roleManager)
     {
         await SeedRolesAndUsersAsync(userManager, roleManager);
+        await RemoveReceptionistUsersAsync(userManager, roleManager);
         await NormalizeIdentityDisplayNamesAsync(userManager);
 
         if (db.Patients.Any())
@@ -43,7 +44,6 @@ public static class ClinicSeeder
             new Medicine { Name = "Nước muối sinh lý", Unit = "Chai", QuantityInStock = 18, UnitPrice = 9000, ExpiryDate = DateTime.Today.AddMonths(8) });
         db.UserAccounts.AddRange(
             new UserAccount { UserName = "admin", DisplayName = "Quản trị hệ thống", Role = "Quản trị" },
-            new UserAccount { UserName = "letan", DisplayName = "Bộ phận lễ tân", Role = "Lễ tân" },
             new UserAccount { UserName = "duocsi", DisplayName = "Kho dược", Role = "Dược sĩ" });
         db.SaveChanges();
 
@@ -64,7 +64,7 @@ public static class ClinicSeeder
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager)
     {
-        var roles = new[] { "Admin", "BacSi", "LeTan", "DuocSi", "BenhNhan" };
+        var roles = new[] { "Admin", "BacSi", "DuocSi", "BenhNhan" };
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -75,8 +75,6 @@ public static class ClinicSeeder
 
         await EnsureUserAsync(userManager, "admin@phongkham.local", "Quản trị hệ thống", "Admin", "Admin");
         await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bác sĩ phòng khám", "BacSi", "BacSi");
-        await EnsureUserAsync(userManager, "letan1@phongkham.local", "Lễ tân 1", "LeTan", "LeTan");
-        await EnsureUserAsync(userManager, "letan2@phongkham.local", "Lễ tân 2", "LeTan", "LeTan");
         await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Dược sĩ", "DuocSi", "DuocSi");
         await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Bệnh nhân mẫu", "BenhNhan", "BenhNhan");
     }
@@ -113,14 +111,32 @@ public static class ClinicSeeder
         }
     }
 
+    private static async Task RemoveReceptionistUsersAsync(
+        UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager)
+    {
+        foreach (var email in new[] { "letan1@phongkham.local", "letan2@phongkham.local" })
+        {
+            var user = await userManager.FindByEmailAsync(email);
+            if (user is not null)
+            {
+                await userManager.DeleteAsync(user);
+            }
+        }
+
+        var role = await roleManager.FindByNameAsync("LeTan");
+        if (role is not null)
+        {
+            await roleManager.DeleteAsync(role);
+        }
+    }
+
     private static async Task NormalizeIdentityDisplayNamesAsync(UserManager<ApplicationUser> userManager)
     {
         var names = new Dictionary<string, string>
         {
             ["admin@phongkham.local"] = "Quản trị hệ thống",
             ["bacsi@phongkham.local"] = "Bác sĩ phòng khám",
-            ["letan1@phongkham.local"] = "Lễ tân 1",
-            ["letan2@phongkham.local"] = "Lễ tân 2",
             ["duocsi@phongkham.local"] = "Dược sĩ",
             ["benhnhan@phongkham.local"] = "Bệnh nhân mẫu"
         };
@@ -156,7 +172,7 @@ public static class ClinicSeeder
         changed |= UpdateMedicine(db, "Nuoc muoi sinh ly", "Chai", "Nước muối sinh lý");
 
         changed |= UpdateUsers(db, "admin", "Quản trị hệ thống", "Quản trị");
-        changed |= UpdateUsers(db, "letan", "Bộ phận lễ tân", "Lễ tân");
+        changed |= RemoveUserAccount(db, "letan");
         changed |= UpdateUsers(db, "duocsi", "Kho dược", "Dược sĩ");
 
         foreach (var appointment in db.Appointments)
@@ -244,6 +260,15 @@ public static class ClinicSeeder
         var changed = Replace(entity.DisplayName, entity.DisplayName, displayName, value => entity.DisplayName = value);
         changed |= Replace(entity.Role, entity.Role, role, value => entity.Role = value);
         return changed;
+    }
+
+    private static bool RemoveUserAccount(ClinicDbContext db, string userName)
+    {
+        var entity = db.UserAccounts.FirstOrDefault(x => x.UserName == userName);
+        if (entity is null) return false;
+
+        db.UserAccounts.Remove(entity);
+        return true;
     }
 
     private static bool Replace(string current, string oldValue, string newValue, Action<string> setValue)

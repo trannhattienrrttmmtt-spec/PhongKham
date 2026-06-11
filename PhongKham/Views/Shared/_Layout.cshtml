@@ -23,16 +23,16 @@
             </a>
             <nav class="side-nav">
                 <a asp-controller="Clinic" asp-action="Dashboard"><span>TC</span>Trang chủ</a>
-                @if (User.IsInRole("Admin") || User.IsInRole("LeTan") || User.IsInRole("BacSi"))
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi"))
                 {
                     <a asp-controller="Clinic" asp-action="Patients"><span>BN</span>Bệnh nhân</a>
                 }
-                @if (User.IsInRole("Admin") || User.IsInRole("LeTan"))
+                @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="Clinic" asp-action="Doctors"><span>BS</span>Bác sĩ</a>
                     <a asp-controller="Clinic" asp-action="Rooms"><span>PB</span>Phòng bệnh</a>
                 }
-                @if (User.IsInRole("Admin") || User.IsInRole("LeTan") || User.IsInRole("BacSi") || User.IsInRole("BenhNhan"))
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("BenhNhan"))
                 {
                     <a asp-controller="Clinic" asp-action="Appointments"><span>LH</span>Lịch hẹn</a>
                 }
@@ -70,7 +70,6 @@
                     <strong>
                         @(User.IsInRole("Admin") ? "Admin" :
                           User.IsInRole("BacSi") ? "Bác sĩ" :
-                          User.IsInRole("LeTan") ? "Lễ tân" :
                           User.IsInRole("DuocSi") ? "Dược sĩ" :
                           User.IsInRole("BenhNhan") ? "Bệnh nhân" : "Người dùng")
                     </strong>

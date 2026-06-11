@@ -112,7 +112,7 @@ public class UserAccount
     [StringLength(120)]
     public string DisplayName { get; set; } = "";
     [StringLength(40)]
-    public string Role { get; set; } = "Lễ tân";
+    public string Role { get; set; } = "Bệnh nhân";
     public bool IsActive { get; set; } = true;
 }
 

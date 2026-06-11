@@ -23,11 +23,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         }
     }
 
-    [Authorize(Roles = "Admin,LeTan,BacSi")]
+    [Authorize(Roles = "Admin,BacSi")]
     public async Task<IActionResult> Patients() => View(await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients));
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddPatient(Patient patient)
     {
         if (ModelState.IsValid)
@@ -37,7 +37,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         return RedirectToAction(nameof(Patients));
     }
 
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Doctors() => View(await TryLoad(() => db.Doctors.OrderBy(x => x.FullName).ToListAsync(), DemoDoctors));
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -51,11 +51,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         return RedirectToAction(nameof(Doctors));
     }
 
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Rooms() => View(await TryLoad(() => db.Rooms.OrderBy(x => x.RoomNumber).ToListAsync(), DemoRooms));
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddRoom(Room room)
     {
         if (ModelState.IsValid)
@@ -65,7 +65,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         return RedirectToAction(nameof(Rooms));
     }
 
-    [Authorize(Roles = "Admin,LeTan,BacSi,BenhNhan")]
+    [Authorize(Roles = "Admin,BacSi,BenhNhan")]
     public async Task<IActionResult> Appointments()
     {
         ViewBag.Patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
@@ -75,7 +75,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,LeTan,BenhNhan")]
+    [Authorize(Roles = "Admin,BenhNhan")]
     public async Task<IActionResult> AddAppointment(Appointment appointment)
     {
         if (ModelState.IsValid)
@@ -264,7 +264,6 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     private static List<UserAccount> DemoUsers() =>
     [
         new() { UserName = "admin", DisplayName = "Quản trị hệ thống", Role = "Quản trị" },
-        new() { UserName = "letan", DisplayName = "Bộ phận lễ tân", Role = "Lễ tân" },
         new() { UserName = "duocsi", DisplayName = "Kho dược", Role = "Dược sĩ" }
     ];
 
