@@ -71,9 +71,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         var patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
         if (User.IsInRole("BenhNhan"))
         {
-            var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
-            var patient = patients.FirstOrDefault(x => x.Phone == currentUser?.PhoneNumber)
-                ?? patients.FirstOrDefault(x => x.FullName == currentUser?.FullName);
+            var patient = await GetOrCreateCurrentPatientAsync();
             patients = patient is null ? [] : [patient];
         }
 
@@ -99,15 +97,13 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         {
             if (User.IsInRole("BenhNhan"))
             {
-                var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
-                var patient = currentUser is null
-                    ? null
-                    : await db.Patients.FirstOrDefaultAsync(x => x.Phone == currentUser.PhoneNumber)
-                        ?? await db.Patients.FirstOrDefaultAsync(x => x.FullName == currentUser.FullName);
-                if (patient is not null)
+                var patient = await GetOrCreateCurrentPatientAsync();
+                if (patient is null)
                 {
-                    appointment.PatientId = patient.Id;
+                    TempData["DatabaseWarning"] = "Không tìm thấy tài khoản bệnh nhân để đặt lịch.";
+                    return RedirectToAction(nameof(Appointments));
                 }
+                appointment.PatientId = patient.Id;
                 appointment.Status = "Đã đặt lịch";
                 appointment.Fee = 150000;
             }
@@ -117,6 +113,41 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         return RedirectToAction(nameof(Appointments));
     }
 
+    private async Task<Patient?> GetOrCreateCurrentPatientAsync()
+    {
+        var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
+        if (currentUser is null)
+        {
+            return null;
+        }
+
+        Patient? patient = null;
+        if (!string.IsNullOrWhiteSpace(currentUser.PhoneNumber))
+        {
+            patient = await db.Patients.FirstOrDefaultAsync(x => x.Phone == currentUser.PhoneNumber);
+        }
+
+        patient ??= await db.Patients.FirstOrDefaultAsync(x => x.FullName == currentUser.FullName);
+        if (patient is not null)
+        {
+            return patient;
+        }
+
+        patient = new Patient
+        {
+            FullName = string.IsNullOrWhiteSpace(currentUser.FullName) ? currentUser.Email ?? currentUser.UserName ?? "Bệnh nhân" : currentUser.FullName,
+            Gender = "Nam",
+            DateOfBirth = DateTime.Today.AddYears(-18),
+            Phone = string.IsNullOrWhiteSpace(currentUser.PhoneNumber) ? "" : currentUser.PhoneNumber,
+            Address = "",
+            InsuranceCode = ""
+        };
+
+        db.Patients.Add(patient);
+        await db.SaveChangesAsync();
+        return patient;
+    }
+
     private async Task<ClinicDashboardViewModel> PersonalizeDashboard(ClinicDashboardViewModel model)
     {
         if (!User.IsInRole("BenhNhan"))
@@ -124,16 +155,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             return model;
         }
 
-        var currentUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == User.Identity!.Name);
-        if (currentUser is null)
-        {
-            model.UpcomingAppointments = [];
-            model.AppointmentsToday = 0;
-            return model;
-        }
-
-        var patient = await db.Patients.FirstOrDefaultAsync(x => x.Phone == currentUser.PhoneNumber)
-            ?? await db.Patients.FirstOrDefaultAsync(x => x.FullName == currentUser.FullName);
+        var patient = await GetOrCreateCurrentPatientAsync();
         if (patient is null)
         {
             model.UpcomingAppointments = [];
