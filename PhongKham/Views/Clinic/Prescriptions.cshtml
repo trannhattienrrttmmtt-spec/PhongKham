@@ -3,6 +3,7 @@
     ViewData["Title"] = "Đơn thuốc";
     var patients = (List<Patient>)ViewBag.Patients;
     var doctors = (List<Doctor>)ViewBag.Doctors;
+    var medicines = (List<Medicine>)ViewBag.Medicines;
 }
 
 <div class="page-title">
@@ -23,7 +24,14 @@
         <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
         <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
         <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
-        <input name="TotalAmount" type="number" class="form-control" placeholder="Tổng tiền" />
+        <select name="medicineId" class="form-select">
+            <option value="">-- Chưa chọn thuốc --</option>
+            @foreach (var medicine in medicines){<option value="@medicine.Id">@medicine.Name — @medicine.UnitPrice.ToString("N0") đ/@medicine.Unit</option>}
+        </select>
+        <input name="quantity" type="number" min="1" value="1" class="form-control" placeholder="Số lượng" />
+        <input name="dosage" class="form-control" placeholder="Liều dùng, ví dụ: 1 viên/lần" />
+        <input name="frequency" class="form-control" placeholder="Số lần uống, ví dụ: 2 lần/ngày" />
+        <input name="duration" class="form-control" placeholder="Thời gian, ví dụ: 5 ngày, sau ăn" />
         <textarea name="Instructions" class="form-control wide" placeholder="Hướng dẫn sử dụng"></textarea>
         <button class="btn btn-primary">Lưu đơn thuốc</button>
     </form>

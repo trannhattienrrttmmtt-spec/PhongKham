@@ -12,6 +12,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 {
     public async Task<IActionResult> Dashboard()
     {
+        if (User.IsInRole("BenhNhan"))
+        {
+            return RedirectToAction("Home", "PatientPortal");
+        }
+
         try
         {
             return View(await PersonalizeDashboard(await dashboardService.GetDashboardAsync()));
@@ -108,7 +113,29 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                 appointment.Fee = 150000;
             }
 
-            await TrySave(() => db.Appointments.Add(appointment));
+            try
+            {
+                db.Appointments.Add(appointment);
+                await db.SaveChangesAsync();
+                db.Invoices.Add(new Invoice
+                {
+                    InvoiceCode = $"HD-{DateTime.Now:yyyyMMdd}-{appointment.Id:D5}",
+                    PatientId = appointment.PatientId,
+                    AppointmentId = appointment.Id,
+                    ExaminationFee = appointment.Fee,
+                    MedicineFee = 0,
+                    ServiceFee = 0,
+                    Discount = 0,
+                    TotalAmount = appointment.Fee,
+                    PaymentStatus = appointment.Status is "Hủy" or "Đã hủy" ? "Cancelled" : "Unpaid",
+                    CreatedBy = User.Identity?.Name ?? ""
+                });
+                await db.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                TempData["DatabaseWarning"] = DatabaseWarning(ex);
+            }
         }
         return RedirectToAction(nameof(Appointments));
     }
@@ -193,18 +220,88 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     {
         ViewBag.Patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
         ViewBag.Doctors = await TryLoad(() => db.Doctors.OrderBy(x => x.FullName).ToListAsync(), DemoDoctors);
+        ViewBag.Medicines = await TryLoad(() => db.Medicines.OrderBy(x => x.Name).ToListAsync(), DemoMedicines);
         return View(await TryLoad(() => db.Prescriptions.Include(x => x.Patient).Include(x => x.Doctor)
             .OrderByDescending(x => x.CreatedAt).ToListAsync(), DemoPrescriptions));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin,BacSi")]
-    public async Task<IActionResult> AddPrescription(Prescription prescription)
+    public async Task<IActionResult> AddPrescription(
+        Prescription prescription,
+        int? medicineId,
+        int quantity,
+        string dosage,
+        string frequency,
+        string duration)
     {
         if (ModelState.IsValid)
         {
             prescription.CreatedAt = DateTime.Now;
-            await TrySave(() => db.Prescriptions.Add(prescription));
+            try
+            {
+                db.Prescriptions.Add(prescription);
+                await db.SaveChangesAsync();
+
+                if (medicineId.HasValue)
+                {
+                    var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == medicineId.Value);
+                    if (medicine is not null)
+                    {
+                        var safeQuantity = Math.Max(quantity, 1);
+                        db.PrescriptionDetails.Add(new PrescriptionDetail
+                        {
+                            PrescriptionId = prescription.Id,
+                            MedicineId = medicine.Id,
+                            Quantity = safeQuantity,
+                            Dosage = dosage,
+                            Route = frequency,
+                            UsageInstruction = duration,
+                            UnitPrice = medicine.UnitPrice,
+                            LineTotal = medicine.UnitPrice * safeQuantity
+                        });
+                        prescription.TotalAmount = medicine.UnitPrice * safeQuantity;
+                        var latestAppointment = await db.Appointments
+                            .Where(x => x.PatientId == prescription.PatientId && x.Status != "Đã hủy")
+                            .OrderByDescending(x => x.AppointmentTime)
+                            .FirstOrDefaultAsync();
+                        if (latestAppointment is not null)
+                        {
+                            var invoice = await db.Invoices.FirstOrDefaultAsync(x => x.AppointmentId == latestAppointment.Id);
+                            if (invoice is not null && invoice.PaymentStatus != "Paid")
+                            {
+                                invoice.MedicineFee += prescription.TotalAmount;
+                                invoice.TotalAmount = invoice.ExaminationFee + invoice.MedicineFee
+                                    + invoice.ServiceFee - invoice.Discount;
+                                invoice.UpdatedAt = DateTime.Now;
+                            }
+                        }
+                        await db.SaveChangesAsync();
+                    }
+                }
+
+                var patient = await db.Patients.FirstOrDefaultAsync(x => x.Id == prescription.PatientId);
+                var patientUser = patient is null ? null : await db.Users.FirstOrDefaultAsync(x =>
+                    (!string.IsNullOrWhiteSpace(patient.Phone) && x.PhoneNumber == patient.Phone)
+                    || x.FullName == patient.FullName);
+                if (patientUser is not null)
+                {
+                    db.Notifications.Add(new Notification
+                    {
+                        UserId = patientUser.Id,
+                        Title = medicineId.HasValue ? "Đơn thuốc mới" : "Bác sĩ đã tạo đơn thuốc",
+                        Message = medicineId.HasValue
+                            ? $"Đơn thuốc DT-{prescription.Id:D5} đã được kê và sẵn sàng để xem."
+                            : $"Đơn thuốc DT-{prescription.Id:D5} đã được tạo và đang chờ bác sĩ kê thuốc.",
+                        CreatedBy = User.Identity?.Name ?? ""
+                    });
+                    await db.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                TempData["DatabaseWarning"] = DatabaseWarning(ex);
+            }
         }
         return RedirectToAction(nameof(Prescriptions));
     }

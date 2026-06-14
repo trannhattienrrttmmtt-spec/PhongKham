@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using PhongKham.Models;
+using System.Text;
 
 namespace PhongKham.Data;
 
@@ -154,7 +155,7 @@ public static class ClinicSeeder
 
     private static void NormalizeSeedDisplayData(ClinicDbContext db)
     {
-        var changed = false;
+        var changed = RepairMojibakeData(db);
         changed |= UpdatePatient(db, "Nguyen Van An", "Nguyễn Văn An", "Nam", "Quận 1, TP.HCM");
         changed |= UpdatePatient(db, "Tran Thi Bich", "Trần Thị Bích", "Nữ", "Thủ Đức, TP.HCM");
         changed |= UpdatePatient(db, "Le Minh Chau", "Lê Minh Châu", "Nữ", "Bình Thạnh, TP.HCM");
@@ -207,6 +208,84 @@ public static class ClinicSeeder
         {
             db.SaveChanges();
         }
+    }
+
+    private static bool RepairMojibakeData(ClinicDbContext db)
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var windows1258 = Encoding.GetEncoding(1258);
+        var changed = false;
+
+        foreach (var patient in db.Patients)
+        {
+            changed |= RepairMojibake(patient.FullName, value => patient.FullName = value, windows1258);
+            changed |= RepairMojibake(patient.Gender, value => patient.Gender = value, windows1258);
+            changed |= RepairMojibake(patient.Address, value => patient.Address = value, windows1258);
+        }
+
+        foreach (var doctor in db.Doctors)
+        {
+            changed |= RepairMojibake(doctor.FullName, value => doctor.FullName = value, windows1258);
+            changed |= RepairMojibake(doctor.Specialty, value => doctor.Specialty = value, windows1258);
+            changed |= RepairMojibake(doctor.Status, value => doctor.Status = value, windows1258);
+        }
+
+        foreach (var room in db.Rooms)
+        {
+            changed |= RepairMojibake(room.Department, value => room.Department = value, windows1258);
+            changed |= RepairMojibake(room.Status, value => room.Status = value, windows1258);
+        }
+
+        foreach (var medicine in db.Medicines)
+        {
+            changed |= RepairMojibake(medicine.Name, value => medicine.Name = value, windows1258);
+            changed |= RepairMojibake(medicine.Unit, value => medicine.Unit = value, windows1258);
+        }
+
+        foreach (var user in db.UserAccounts)
+        {
+            changed |= RepairMojibake(user.DisplayName, value => user.DisplayName = value, windows1258);
+            changed |= RepairMojibake(user.Role, value => user.Role = value, windows1258);
+        }
+
+        foreach (var appointment in db.Appointments)
+        {
+            changed |= RepairMojibake(appointment.Reason, value => appointment.Reason = value, windows1258);
+            changed |= RepairMojibake(appointment.Status, value => appointment.Status = value, windows1258);
+        }
+
+        foreach (var prescription in db.Prescriptions)
+        {
+            changed |= RepairMojibake(prescription.Diagnosis, value => prescription.Diagnosis = value, windows1258);
+            changed |= RepairMojibake(prescription.Instructions, value => prescription.Instructions = value, windows1258);
+        }
+
+        foreach (var record in db.MedicalRecords)
+        {
+            changed |= RepairMojibake(record.Symptoms, value => record.Symptoms = value, windows1258);
+            changed |= RepairMojibake(record.Diagnosis, value => record.Diagnosis = value, windows1258);
+            changed |= RepairMojibake(record.TreatmentPlan, value => record.TreatmentPlan = value, windows1258);
+        }
+
+        return changed;
+    }
+
+    private static bool RepairMojibake(string current, Action<string> setValue, Encoding sourceEncoding)
+    {
+        string[] markers = ["á»", "áº", "Ă", "Ä", "Æ", "Ã", "Â", "â€"];
+        if (!markers.Any(current.Contains))
+        {
+            return false;
+        }
+
+        var repaired = Encoding.UTF8.GetString(sourceEncoding.GetBytes(current));
+        if (repaired == current || repaired.Contains('\uFFFD'))
+        {
+            return false;
+        }
+
+        setValue(repaired);
+        return true;
     }
 
     private static bool UpdatePatient(ClinicDbContext db, string oldName, string newName, string gender, string address)

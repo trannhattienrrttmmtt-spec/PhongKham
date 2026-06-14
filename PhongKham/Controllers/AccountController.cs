@@ -110,7 +110,14 @@ public class AccountController(
         {
             user.LastLoginAt = DateTime.Now;
             await userManager.UpdateAsync(user);
-            return LocalRedirect(model.ReturnUrl ?? Url.Action("Dashboard", "Clinic")!);
+            if (!string.IsNullOrWhiteSpace(model.ReturnUrl))
+            {
+                return LocalRedirect(model.ReturnUrl);
+            }
+
+            return await userManager.IsInRoleAsync(user, "BenhNhan")
+                ? RedirectToAction("Home", "PatientPortal")
+                : RedirectToAction("Dashboard", "Clinic");
         }
 
         if (result.IsLockedOut)

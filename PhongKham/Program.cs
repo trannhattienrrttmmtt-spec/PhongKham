@@ -13,7 +13,16 @@ builder.Logging.AddDebug();
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddDbContext<ClinicDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("ClinicDatabase")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("ClinicDatabase"),
+        sqlOptions =>
+        {
+            sqlOptions.CommandTimeout(60);
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        }));
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
