@@ -82,6 +82,7 @@ public class Medicine
 public class Prescription
 {
     public int Id { get; set; }
+    public string PrescriptionCode => Id > 0 ? $"DT-{CreatedAt:yyyyMMdd}-{Id:000}" : $"DT-{CreatedAt:yyyyMMdd}-MOI";
     public int PatientId { get; set; }
     public Patient? Patient { get; set; }
     public int DoctorId { get; set; }

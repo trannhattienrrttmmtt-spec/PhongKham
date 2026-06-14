@@ -544,7 +544,7 @@ public class ClinicController(
                         InventoryLotId = lot.Id,
                         TransactionType = "Dispense",
                         Quantity = -take,
-                        ReferenceCode = $"RX-{prescription.Id:000}/{lot.BatchNumber}",
+                        ReferenceCode = $"{prescription.PrescriptionCode}/{lot.BatchNumber}",
                         CreatedBy = User.Identity?.Name ?? ""
                     });
                 }
@@ -556,7 +556,7 @@ public class ClinicController(
                         MedicineId = detail.MedicineId,
                         TransactionType = "Dispense",
                         Quantity = -remaining,
-                        ReferenceCode = $"RX-{prescription.Id:000}/NOLOT",
+                        ReferenceCode = $"{prescription.PrescriptionCode}/NOLOT",
                         CreatedBy = User.Identity?.Name ?? ""
                     });
                 }
@@ -566,7 +566,7 @@ public class ClinicController(
             prescription.DispensedAt = DateTime.Now;
             prescription.DispensedBy = User.Identity?.Name ?? "";
             prescription.DispenseNote = "";
-            AddAudit("DispensePrescription", nameof(Prescription), prescription.Id.ToString(), $"Cấp thuốc đơn RX-{prescription.Id:000}");
+            AddAudit("DispensePrescription", nameof(Prescription), prescription.Id.ToString(), $"Cấp thuốc đơn {prescription.PrescriptionCode}");
             await db.SaveChangesAsync();
             await tx.CommitAsync();
         }
@@ -1110,7 +1110,7 @@ public class ClinicController(
         return
         [
             new() { Medicine = medicines[0], TransactionType = "Import", Quantity = 200, ReferenceCode = "PN-DEMO-001", CreatedAt = DateTime.Today.AddDays(-2), CreatedBy = "demo" },
-            new() { Medicine = medicines[1], TransactionType = "Dispense", Quantity = -5, ReferenceCode = "RX-001", CreatedAt = DateTime.Today.AddHours(9), CreatedBy = "demo" }
+            new() { Medicine = medicines[1], TransactionType = "Dispense", Quantity = -5, ReferenceCode = $"DT-{DateTime.Today:yyyyMMdd}-001", CreatedAt = DateTime.Today.AddHours(9), CreatedBy = "demo" }
         ];
     }
 

@@ -124,7 +124,7 @@
                 var dispenseBadge = x.DispenseStatus == "Dispensed" ? "badge-soft" : x.DispenseStatus == "Rejected" ? "badge-hot" : "badge-warn";
                 <tr data-prescription-row data-state="@dispenseState" data-search="@($"{patientName} {doctorName} {x.Diagnosis}".ToLowerInvariant())">
                     <td>@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
-                    <td><strong>@patientName</strong><small class="row-note">Đơn #RX-@x.Id.ToString("000")</small></td>
+                    <td><strong>@patientName</strong><small class="row-note">Mã đơn @x.PrescriptionCode</small></td>
                     <td>@doctorName</td>
                     <td>@x.Diagnosis</td>
                     <td><span class="priority-chip">@detailCount thuốc</span></td>

@@ -69,7 +69,7 @@
                     @foreach (var item in pendingPrescriptions)
                     {
                         <tr>
-                            <td><strong>DT@item.Id.ToString("000")</strong></td>
+                            <td><strong>@item.PrescriptionCode</strong></td>
                             <td>@item.CreatedAt.ToString("dd/MM/yyyy")</td>
                             <td><strong>@item.Patient?.FullName</strong></td>
                             <td>@item.Doctor?.FullName</td>
