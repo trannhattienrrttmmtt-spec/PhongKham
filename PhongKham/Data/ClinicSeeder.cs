@@ -215,9 +215,6 @@ public static class ClinicSeeder
             return;
         }
 
-        var existingByCode = db.Medicines
-            .Where(x => x.Code != "")
-            .ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
         var existingByName = db.Medicines
             .ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
         var added = 0;
@@ -230,37 +227,10 @@ public static class ClinicSeeder
                 continue;
             }
 
-            if (existingByCode.TryGetValue(row.Id, out var byCode))
-            {
-                var changed = false;
-                if (!string.Equals(byCode.Name, row.Name, StringComparison.Ordinal) && !existingByName.ContainsKey(row.Name))
-                {
-                    existingByName.Remove(byCode.Name);
-                    byCode.Name = row.Name;
-                    existingByName[row.Name] = byCode;
-                    changed = true;
-                }
-                if (string.IsNullOrWhiteSpace(byCode.Smiles) && !string.IsNullOrWhiteSpace(row.Smiles))
-                {
-                    byCode.Smiles = row.Smiles;
-                    changed = true;
-                }
-                else if (!string.IsNullOrWhiteSpace(row.Smiles) && !string.Equals(byCode.Smiles, row.Smiles, StringComparison.Ordinal))
-                {
-                    byCode.Smiles = row.Smiles;
-                    changed = true;
-                }
-                if (changed)
-                {
-                    updated++;
-                }
-                continue;
-            }
-
             if (existingByName.TryGetValue(row.Name, out var byName))
             {
                 var changed = false;
-                if (string.IsNullOrWhiteSpace(byName.Code))
+                if (!string.Equals(byName.Code, row.Id, StringComparison.OrdinalIgnoreCase))
                 {
                     byName.Code = row.Id;
                     changed = true;
@@ -272,7 +242,6 @@ public static class ClinicSeeder
                 }
                 if (changed)
                 {
-                    existingByCode[row.Id] = byName;
                     updated++;
                 }
                 continue;
@@ -291,7 +260,6 @@ public static class ClinicSeeder
                 IsActive = true
             };
             db.Medicines.Add(medicine);
-            existingByCode[row.Id] = medicine;
             existingByName[row.Name] = medicine;
             added++;
         }
