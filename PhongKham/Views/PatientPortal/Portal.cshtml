@@ -180,7 +180,7 @@ else if (Model.Page == "Appointments")
                 <tbody>
                 @foreach (var item in Model.Appointments)
                 {
-                    <tr data-appointment-row data-status="@item.Status" data-date="@item.AppointmentTime.ToString("yyyy-MM-dd")"><td><strong>LH-@item.Id.ToString("D5")</strong></td><td>@item.Doctor?.FullName</td><td>@item.Doctor?.Specialty</td><td>@item.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@item.AppointmentTime.ToString("HH:mm")</td><td><span class="status-pill">@item.Status</span></td><td class="row-actions"><a asp-action="AppointmentDetail" asp-route-id="@item.Id">Chi tiết</a>@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post" data-confirm="Bạn chắc chắn muốn hủy lịch khám này?"><input type="hidden" name="id" value="@item.Id"/><button>Hủy lịch</button></form>}</td></tr>
+                    <tr data-appointment-row data-status="@item.Status" data-date="@item.AppointmentTime.ToString("yyyy-MM-dd")"><td><strong>LH-@item.Id.ToString("D5")</strong></td><td>@item.Doctor?.FullName</td><td>@item.Doctor?.Specialty</td><td>@item.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@item.AppointmentTime.ToString("HH:mm")</td><td><span class="status-pill">@item.Status</span></td><td class="row-actions"><a asp-action="AppointmentDetail" asp-route-id="@item.Id">Chi tiết</a>@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch</a>}@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post" data-confirm="Bạn chắc chắn muốn hủy lịch khám này?"><input type="hidden" name="id" value="@item.Id"/><button>Hủy lịch</button></form>}</td></tr>
                 }
                 @if (!Model.Appointments.Any())
                 {
@@ -190,6 +190,24 @@ else if (Model.Page == "Appointments")
             </table>
         </div>
     </div>
+}
+else if (Model.Page == "EditAppointment")
+{
+    var item = Model.Appointment!;
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Appointments">← Quay lại danh sách</a><span class="portal-kicker">Điều chỉnh lịch hẹn</span><h1>Sửa lịch khám</h1><p>Mã lịch LH-@item.Id.ToString("D5"). Chỉ có thể đổi lịch trước giờ khám ít nhất 4 giờ.</p></div></div>
+    <form asp-action="UpdateAppointment" method="post" class="booking-layout">
+        <input type="hidden" name="Id" value="@item.Id" />
+        <div class="portal-card booking-form">
+            <div class="form-step"><span>1</span><div><h2>Bác sĩ và thời gian mới</h2><p>Hệ thống sẽ kiểm tra trùng lịch trước khi cập nhật.</p></div></div>
+            <div class="field-grid">
+                <label><span>Bác sĩ</span><select name="DoctorId" class="form-select" required>@foreach(var doctor in Model.Doctors){<option value="@doctor.Id" selected="@(doctor.Id == item.DoctorId)">@doctor.FullName — @doctor.Specialty</option>}</select></label>
+                <label><span>Ngày khám</span><input name="AppointmentDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@item.AppointmentTime.ToString("yyyy-MM-dd")" class="form-control" required /></label>
+                <label><span>Giờ khám</span><select name="AppointmentTime" class="form-select">@foreach(var slot in new[]{"08:00","08:30","09:00","09:30","14:00","14:30","15:00","15:30"}){<option selected="@(slot == item.AppointmentTime.ToString("HH:mm"))">@slot</option>}</select></label>
+                <label class="span-2"><span>Triệu chứng / lý do khám</span><textarea name="Symptoms" class="form-control" rows="5" required>@item.Reason</textarea></label>
+            </div>
+        </div>
+        <aside class="portal-card booking-summary"><span class="portal-kicker">Xác nhận thay đổi</span><h2>Lịch hiện tại</h2><div class="price-row"><span>Thời gian</span><strong>@item.AppointmentTime.ToString("dd/MM HH:mm")</strong></div><div class="price-row"><span>Bác sĩ</span><strong>@item.Doctor?.FullName</strong></div><button class="btn btn-primary btn-lg w-100">Lưu lịch mới</button></aside>
+    </form>
 }
 else if (Model.Page == "AppointmentDetail")
 {
@@ -202,7 +220,7 @@ else if (Model.Page == "AppointmentDetail")
             <div class="info-section"><h2>Thông tin bệnh nhân</h2><div class="info-grid"><div><span>Họ và tên</span><strong>@Model.Patient.FullName</strong></div><div><span>Số điện thoại</span><strong>@Model.Patient.Phone</strong></div><div><span>Ngày sinh</span><strong>@Model.Patient.DateOfBirth.ToString("dd/MM/yyyy")</strong></div><div><span>Giới tính</span><strong>@Model.Patient.Gender</strong></div></div></div>
             <div class="info-section"><h2>Triệu chứng / lý do khám</h2><p class="symptom-box">@(item?.Reason ?? "Chưa có thông tin")</p></div>
         </div>
-        <aside class="portal-card timeline-card"><h2>Trạng thái lịch hẹn</h2><div class="status-timeline"><div class="done"><span></span><strong>Đã đặt lịch</strong><small>Thông tin đã được ghi nhận</small></div><div class="@(item?.Status == "Đã xác nhận" || item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Phòng khám xác nhận</strong><small>Nhân viên kiểm tra lịch bác sĩ</small></div><div class="@(item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Hoàn tất khám</strong><small>Kết quả được cập nhật vào hồ sơ</small></div></div>@if(item?.Status != "Hoàn tất" && item?.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post"><input type="hidden" name="id" value="@item?.Id"/><button class="btn btn-outline-danger w-100">Hủy lịch khám</button></form>}</aside>
+        <aside class="portal-card timeline-card"><h2>Trạng thái lịch hẹn</h2><div class="status-timeline"><div class="done"><span></span><strong>Đã đặt lịch</strong><small>Thông tin đã được ghi nhận</small></div><div class="@(item?.Status == "Đã xác nhận" || item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Phòng khám xác nhận</strong><small>Nhân viên kiểm tra lịch bác sĩ</small></div><div class="@(item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Hoàn tất khám</strong><small>Kết quả được cập nhật vào hồ sơ</small></div></div>@if(item is not null && item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a class="btn btn-outline-primary w-100 mb-2" asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch khám</a>}@if(item?.Status != "Hoàn tất" && item?.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post"><input type="hidden" name="id" value="@item?.Id"/><button class="btn btn-outline-danger w-100">Hủy lịch khám</button></form>}</aside>
     </div>
 }
 else if (Model.Page == "Results")
@@ -215,7 +233,7 @@ else if (Model.Page == "Results")
             <article class="portal-card result-card">
                 <div class="result-head"><div><span class="record-date">@record.VisitDate.ToString("dd/MM/yyyy")</span><h2>@record.Doctor?.FullName</h2><p>@record.Doctor?.Specialty</p></div><span class="verified-badge">✓ Đã có kết quả</span></div>
                 <div class="result-grid"><div><span>Triệu chứng</span><p>@record.Symptoms</p></div><div><span>Chẩn đoán</span><p><strong>@record.Diagnosis</strong></p></div><div class="span-2"><span>Kết luận & khuyến nghị điều trị</span><p>@record.TreatmentPlan</p></div></div>
-                <div class="attachment-row"><div><span class="file-icon">TXT</span><div><strong>Kết quả khám ngày @(record.VisitDate.ToString("dd-MM-yyyy"))</strong><small>Hồ sơ điện tử · UTF-8</small></div></div><a class="btn btn-sm btn-outline-primary" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải xuống</a></div>
+                <div class="attachment-row"><div><span class="file-icon">HS</span><div><strong>Kết quả khám ngày @(record.VisitDate.ToString("dd-MM-yyyy"))</strong><small>Hồ sơ bệnh án điện tử</small></div></div><div class="row-actions"><a asp-action="ResultDetail" asp-route-id="@record.Id">Xem chi tiết</a><a class="btn btn-sm btn-outline-primary" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải xuống</a></div></div>
             </article>
         }
     }
@@ -224,6 +242,22 @@ else if (Model.Page == "Results")
         <div class="portal-card portal-empty"><strong>Chưa có kết quả khám</strong><span>Kết quả sẽ xuất hiện sau khi bác sĩ hoàn tất buổi khám.</span><a asp-action="Book" class="btn btn-primary">Đặt lịch khám</a></div>
     }
 }
+else if (Model.Page == "ResultDetail")
+{
+    var record = Model.MedicalRecord!;
+    var prescription = Model.Prescriptions.FirstOrDefault(x => x.DoctorId == record.DoctorId && x.CreatedAt.Date == record.VisitDate.Date)
+        ?? Model.Prescriptions.FirstOrDefault(x => x.DoctorId == record.DoctorId);
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Results">← Quay lại kết quả</a><span class="portal-kicker">Bệnh án điện tử</span><h1>Chi tiết kết quả khám</h1><p>Hồ sơ KQ-@record.Id.ToString("D5") · @record.VisitDate.ToString("dd/MM/yyyy HH:mm")</p></div><a class="btn btn-outline-primary" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải hồ sơ</a></div>
+    <div class="detail-grid">
+        <div class="portal-card detail-main">
+            <div class="info-section"><h2>Thông tin lần khám</h2><div class="info-grid"><div><span>Bệnh nhân</span><strong>@Model.Patient.FullName</strong></div><div><span>Bác sĩ khám</span><strong>@record.Doctor?.FullName</strong></div><div><span>Chuyên khoa</span><strong>@record.Doctor?.Specialty</strong></div><div><span>Ngày khám</span><strong>@record.VisitDate.ToString("dd/MM/yyyy HH:mm")</strong></div></div></div>
+            <div class="result-detail-section"><span>Triệu chứng</span><p>@record.Symptoms</p></div>
+            <div class="result-detail-section accent"><span>Chẩn đoán</span><h2>@record.Diagnosis</h2></div>
+            <div class="result-detail-section"><span>Kết luận và khuyến nghị điều trị</span><p>@record.TreatmentPlan</p></div>
+        </div>
+        <aside class="portal-card timeline-card"><h2>Tài liệu liên quan</h2><a class="btn btn-outline-primary w-100" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải kết quả khám</a>@if(prescription is not null){<a class="btn btn-primary w-100 mt-2" asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải đơn thuốc PDF</a>}else{<p class="text-muted mt-3">Lần khám này chưa có đơn thuốc.</p>}</aside>
+    </div>
+}
 else if (Model.Page == "Prescriptions")
 {
     <div class="portal-page-head"><div><span class="portal-kicker">Điều trị</span><h1>Đơn thuốc của tôi</h1><p>Theo dõi thuốc, liều dùng và hướng dẫn của bác sĩ.</p></div><button type="button" class="btn btn-outline-primary" data-print-page>In đơn thuốc</button></div>
@@ -231,7 +265,7 @@ else if (Model.Page == "Prescriptions")
     {
         var details = Model.PrescriptionDetails.Where(x => x.PrescriptionId == prescription.Id).ToList();
         <article class="portal-card prescription-card">
-            <div class="prescription-head"><div><span>ĐƠN THUỐC #DT-@prescription.Id.ToString("D5")</span><h2>@prescription.Diagnosis</h2><p>@prescription.Doctor?.FullName · @prescription.CreatedAt.ToString("dd/MM/yyyy")</p></div><span class="status-pill">@(details.Any() ? "Đang sử dụng" : "Chờ kê thuốc")</span></div>
+            <div class="prescription-head"><div><span>ĐƠN THUỐC #DT-@prescription.Id.ToString("D5")</span><h2>@prescription.Diagnosis</h2><p>@prescription.Doctor?.FullName · @prescription.CreatedAt.ToString("dd/MM/yyyy")</p></div><div class="prescription-actions"><span class="status-pill">@(details.Any() ? "Đang sử dụng" : "Chờ kê thuốc")</span>@if(details.Any()){<a class="btn btn-sm btn-outline-primary" asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải PDF</a>}</div></div>
             <div class="table-responsive"><table class="table portal-table"><thead><tr><th>Thuốc</th><th>Liều dùng</th><th>Số lần uống</th><th>Thời gian</th><th>Số lượng</th></tr></thead><tbody>
             @if(details.Any()){foreach(var detail in details){<tr><td><strong>@detail.Medicine?.Name</strong></td><td>@detail.Dosage</td><td>@detail.Route</td><td>@detail.UsageInstruction</td><td>@detail.Quantity @detail.Medicine?.Unit</td></tr>}}
             else{<tr><td colspan="5"><div class="prescription-empty"><strong>Chưa có thuốc trong đơn</strong><span>Bác sĩ chưa chọn thuốc, liều dùng và thời gian sử dụng.</span></div></td></tr>}
@@ -249,7 +283,7 @@ else if (Model.Page == "History")
         @foreach(var record in Model.MedicalRecords)
         {
             var prescription = Model.Prescriptions.FirstOrDefault(x => x.PatientId == record.PatientId && x.DoctorId == record.DoctorId);
-            <article class="portal-card history-item" data-history-row data-date="@record.VisitDate.ToString("yyyy-MM-dd")"><div class="history-date"><strong>@record.VisitDate.ToString("dd")</strong><span>@record.VisitDate.ToString("MM/yyyy")</span></div><div class="history-body"><span class="status-pill">Đã hoàn tất</span><h2>@record.Diagnosis</h2><p>@record.Doctor?.FullName · @record.Doctor?.Specialty</p><div class="history-summary"><span>Triệu chứng: @record.Symptoms</span><span>Điều trị: @record.TreatmentPlan</span></div><div class="row-actions"><a asp-action="Results">Xem chi tiết bệnh án</a>@if(prescription is not null){<a asp-action="Prescriptions">Xem đơn thuốc</a>}</div></div></article>
+            <article class="portal-card history-item" data-history-row data-date="@record.VisitDate.ToString("yyyy-MM-dd")"><div class="history-date"><strong>@record.VisitDate.ToString("dd")</strong><span>@record.VisitDate.ToString("MM/yyyy")</span></div><div class="history-body"><span class="status-pill">Đã hoàn tất</span><h2>@record.Diagnosis</h2><p>@record.Doctor?.FullName · @record.Doctor?.Specialty</p><div class="history-summary"><span>Triệu chứng: @record.Symptoms</span><span>Điều trị: @record.TreatmentPlan</span></div><div class="row-actions"><a asp-action="ResultDetail" asp-route-id="@record.Id">Xem chi tiết bệnh án</a>@if(prescription is not null){<a asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải đơn thuốc PDF</a>}</div></div></article>
         }
         @if(!Model.MedicalRecords.Any()){<div class="portal-card portal-empty"><strong>Chưa có lịch sử khám</strong><span>Các lần khám hoàn tất sẽ được lưu tại đây.</span></div>}
     </div>

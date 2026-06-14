@@ -4,8 +4,10 @@ using PhongKham.Data;
 using PhongKham.Models;
 using PhongKham.Repositories;
 using PhongKham.Services;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = LicenseType.Community;
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();

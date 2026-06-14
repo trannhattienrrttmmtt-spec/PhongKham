@@ -12,6 +12,7 @@ public class PatientPortalViewModel
     public List<Specialty> Specialties { get; set; } = [];
     public List<Appointment> Appointments { get; set; } = [];
     public Appointment? Appointment { get; set; }
+    public MedicalRecord? MedicalRecord { get; set; }
     public List<MedicalRecord> MedicalRecords { get; set; } = [];
     public List<Prescription> Prescriptions { get; set; } = [];
     public List<PrescriptionDetail> PrescriptionDetails { get; set; } = [];
@@ -23,6 +24,19 @@ public class PatientPortalViewModel
     public int AppointmentCount { get; set; }
     public int? SelectedDoctorId { get; set; }
     public string SelectedSpecialty { get; set; } = "";
+}
+
+public class AppointmentEditInput
+{
+    public int Id { get; set; }
+    [Required]
+    public int DoctorId { get; set; }
+    [Required, DataType(DataType.Date)]
+    public DateTime AppointmentDate { get; set; }
+    [Required]
+    public string AppointmentTime { get; set; } = "";
+    [Required, StringLength(500)]
+    public string Symptoms { get; set; } = "";
 }
 
 public class PatientProfileInput

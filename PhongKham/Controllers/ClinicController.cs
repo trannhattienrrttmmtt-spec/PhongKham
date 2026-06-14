@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 using PhongKham.Data;
 using PhongKham.Models;
 using PhongKham.Services;
+using System.Globalization;
+using System.Text;
 
 namespace PhongKham.Controllers;
 
@@ -29,7 +31,23 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin,BacSi")]
-    public async Task<IActionResult> Patients() => View(await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients));
+    public async Task<IActionResult> Patients(string search = "", string gender = "")
+    {
+        var query = db.Patients.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            search = search.Trim();
+            query = query.Where(x => x.FullName.Contains(search) || x.Phone.Contains(search)
+                || x.InsuranceCode.Contains(search) || x.Address.Contains(search));
+        }
+        if (!string.IsNullOrWhiteSpace(gender))
+        {
+            query = query.Where(x => x.Gender == gender);
+        }
+        ViewBag.Search = search;
+        ViewBag.Gender = gender;
+        return View(await TryLoad(() => query.OrderBy(x => x.FullName).ToListAsync(), DemoPatients));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
@@ -115,6 +133,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
             try
             {
+                if (await HasDoctorConflictAsync(appointment.DoctorId, appointment.AppointmentTime))
+                {
+                    TempData["DatabaseWarning"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
+                    return RedirectToAction(nameof(Appointments));
+                }
                 db.Appointments.Add(appointment);
                 await db.SaveChangesAsync();
                 db.Invoices.Add(new Invoice
@@ -202,7 +225,26 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin,DuocSi")]
-    public async Task<IActionResult> Medicines() => View(await TryLoad(() => db.Medicines.OrderBy(x => x.Name).ToListAsync(), DemoMedicines));
+    public async Task<IActionResult> Medicines(string search = "", string stock = "")
+    {
+        var query = db.Medicines.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(x => x.Name.Contains(search));
+        query = stock switch
+        {
+            "low" => query.Where(x => x.QuantityInStock < 30),
+            "expired" => query.Where(x => x.ExpiryDate < DateTime.Today),
+            "expiring" => query.Where(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60)),
+            _ => query
+        };
+        ViewBag.Search = search;
+        ViewBag.Stock = stock;
+        ViewBag.LowStockCount = await db.Medicines.CountAsync(x => x.QuantityInStock < 30);
+        ViewBag.ExpiringCount = await db.Medicines.CountAsync(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60));
+        ViewBag.InventoryTransactions = await db.InventoryTransactions.Include(x => x.Medicine)
+            .OrderByDescending(x => x.CreatedAt).Take(15).ToListAsync();
+        return View(await TryLoad(() => query.OrderBy(x => x.Name).ToListAsync(), DemoMedicines));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin,DuocSi")]
@@ -212,6 +254,30 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         {
             await TrySave(() => db.Medicines.Add(medicine));
         }
+        return RedirectToAction(nameof(Medicines));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> AdjustMedicineStock(int id, int quantity, string reason)
+    {
+        var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == id);
+        if (medicine is null || quantity == 0 || medicine.QuantityInStock + quantity < 0)
+        {
+            TempData["DatabaseWarning"] = "Số lượng điều chỉnh không hợp lệ hoặc vượt quá tồn kho.";
+            return RedirectToAction(nameof(Medicines));
+        }
+        medicine.QuantityInStock += quantity;
+        db.InventoryTransactions.Add(new InventoryTransaction
+        {
+            MedicineId = medicine.Id,
+            TransactionType = quantity > 0 ? "Import" : "Export",
+            Quantity = Math.Abs(quantity),
+            ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Điều chỉnh thủ công" : reason.Trim(),
+            CreatedBy = User.Identity?.Name ?? ""
+        });
+        await db.SaveChangesAsync();
+        TempData["PortalSuccess"] = "Đã cập nhật tồn kho.";
         return RedirectToAction(nameof(Medicines));
     }
 
@@ -240,27 +306,45 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             prescription.CreatedAt = DateTime.Now;
             try
             {
+                Medicine? selectedMedicine = null;
+                var safeQuantity = Math.Max(quantity, 1);
+                if (medicineId.HasValue)
+                {
+                    selectedMedicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == medicineId.Value);
+                    if (selectedMedicine is null || selectedMedicine.QuantityInStock < safeQuantity)
+                    {
+                        TempData["DatabaseWarning"] = selectedMedicine is null
+                            ? "Không tìm thấy thuốc đã chọn."
+                            : $"Thuốc {selectedMedicine.Name} chỉ còn {selectedMedicine.QuantityInStock} {selectedMedicine.Unit}.";
+                        return RedirectToAction(nameof(Prescriptions));
+                    }
+                }
                 db.Prescriptions.Add(prescription);
                 await db.SaveChangesAsync();
 
-                if (medicineId.HasValue)
+                if (selectedMedicine is not null)
                 {
-                    var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == medicineId.Value);
-                    if (medicine is not null)
+                    db.PrescriptionDetails.Add(new PrescriptionDetail
                     {
-                        var safeQuantity = Math.Max(quantity, 1);
-                        db.PrescriptionDetails.Add(new PrescriptionDetail
-                        {
-                            PrescriptionId = prescription.Id,
-                            MedicineId = medicine.Id,
-                            Quantity = safeQuantity,
-                            Dosage = dosage,
-                            Route = frequency,
-                            UsageInstruction = duration,
-                            UnitPrice = medicine.UnitPrice,
-                            LineTotal = medicine.UnitPrice * safeQuantity
-                        });
-                        prescription.TotalAmount = medicine.UnitPrice * safeQuantity;
+                        PrescriptionId = prescription.Id,
+                        MedicineId = selectedMedicine.Id,
+                        Quantity = safeQuantity,
+                        Dosage = dosage,
+                        Route = frequency,
+                        UsageInstruction = duration,
+                        UnitPrice = selectedMedicine.UnitPrice,
+                        LineTotal = selectedMedicine.UnitPrice * safeQuantity
+                    });
+                    prescription.TotalAmount = selectedMedicine.UnitPrice * safeQuantity;
+                    selectedMedicine.QuantityInStock -= safeQuantity;
+                    db.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MedicineId = selectedMedicine.Id,
+                        TransactionType = "Prescription",
+                        Quantity = safeQuantity,
+                        ReferenceCode = $"DT-{prescription.Id:D5}",
+                        CreatedBy = User.Identity?.Name ?? ""
+                    });
                         var latestAppointment = await db.Appointments
                             .Where(x => x.PatientId == prescription.PatientId && x.Status != "Đã hủy")
                             .OrderByDescending(x => x.AppointmentTime)
@@ -276,8 +360,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                                 invoice.UpdatedAt = DateTime.Now;
                             }
                         }
-                        await db.SaveChangesAsync();
-                    }
+                    await db.SaveChangesAsync();
                 }
 
                 var patient = await db.Patients.FirstOrDefaultAsync(x => x.Id == prescription.PatientId);
@@ -328,18 +411,43 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Revenue()
+    public async Task<IActionResult> Revenue(DateTime? from, DateTime? to)
     {
-        var appointments = await TryLoad(() => db.Appointments.Include(x => x.Patient).OrderByDescending(x => x.AppointmentTime).Take(10).ToListAsync(), DemoAppointments);
-        var prescriptions = await TryLoad(() => db.Prescriptions.Include(x => x.Patient).OrderByDescending(x => x.CreatedAt).Take(10).ToListAsync(), DemoPrescriptions);
-        var appointmentRevenue = appointments.Sum(x => x.Fee);
-        var prescriptionRevenue = prescriptions.Sum(x => x.TotalAmount);
+        var fromDate = (from ?? DateTime.Today.AddDays(-30)).Date;
+        var toDate = (to ?? DateTime.Today).Date.AddDays(1);
+        var invoices = await db.Invoices.Include(x => x.Patient).Include(x => x.Payments)
+            .Where(x => x.PaymentStatus == "Paid" && x.Payments.Any(p => p.PaidAt >= fromDate && p.PaidAt < toDate))
+            .OrderByDescending(x => x.Payments.Max(p => p.PaidAt)).ToListAsync();
+        var appointmentRevenue = invoices.Sum(x => x.ExaminationFee + x.ServiceFee - x.Discount);
+        var prescriptionRevenue = invoices.Sum(x => x.MedicineFee);
         ViewBag.AppointmentRevenue = appointmentRevenue;
         ViewBag.PrescriptionRevenue = prescriptionRevenue;
         ViewBag.TotalRevenue = appointmentRevenue + prescriptionRevenue;
-        ViewBag.Appointments = appointments;
-        ViewBag.Prescriptions = prescriptions;
+        ViewBag.Invoices = invoices;
+        ViewBag.From = fromDate;
+        ViewBag.To = toDate.AddDays(-1);
         return View();
+    }
+
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ExportRevenue(DateTime? from, DateTime? to)
+    {
+        var fromDate = (from ?? DateTime.Today.AddDays(-30)).Date;
+        var toDate = (to ?? DateTime.Today).Date.AddDays(1);
+        var invoices = await db.Invoices.Include(x => x.Patient).Include(x => x.Payments)
+            .Where(x => x.PaymentStatus == "Paid" && x.Payments.Any(p => p.PaidAt >= fromDate && p.PaidAt < toDate))
+            .OrderBy(x => x.Payments.Max(p => p.PaidAt)).ToListAsync();
+        var csv = new StringBuilder("Ma hoa don;Ngay thanh toan;Benh nhan;Phi kham;Phi thuoc;Phi dich vu;Giam gia;Tong tien;Phuong thuc\r\n");
+        foreach (var invoice in invoices)
+        {
+            var payment = invoice.Payments.OrderByDescending(x => x.PaidAt).First();
+            csv.AppendLine(string.Join(";",
+                Csv(invoice.InvoiceCode), Csv(payment.PaidAt.ToString("dd/MM/yyyy HH:mm")),
+                Csv(invoice.Patient?.FullName ?? ""), Number(invoice.ExaminationFee), Number(invoice.MedicineFee),
+                Number(invoice.ServiceFee), Number(invoice.Discount), Number(invoice.TotalAmount), Csv(payment.Method)));
+        }
+        return File(new UTF8Encoding(true).GetBytes(csv.ToString()), "text/csv; charset=utf-8",
+            $"doanh-thu-{fromDate:yyyyMMdd}-{toDate.AddDays(-1):yyyyMMdd}.csv");
     }
 
     [Authorize(Roles = "Admin")]
@@ -381,6 +489,19 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             TempData["DatabaseWarning"] = DatabaseWarning(ex);
         }
     }
+
+    private async Task<bool> HasDoctorConflictAsync(int doctorId, DateTime appointmentTime, int? excludeId = null)
+    {
+        var start = appointmentTime.AddMinutes(-29);
+        var end = appointmentTime.AddMinutes(29);
+        return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
+            && (!excludeId.HasValue || x.Id != excludeId.Value)
+            && x.Status != "Đã hủy" && x.Status != "Hủy"
+            && x.AppointmentTime >= start && x.AppointmentTime <= end);
+    }
+
+    private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+    private static string Number(decimal value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
     private static string DatabaseWarning(Exception ex) =>
         $"Chưa kết nối được SQL Server: {ex.GetBaseException().Message}";

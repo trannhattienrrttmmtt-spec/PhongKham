@@ -5,6 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using PhongKham.Data;
 using PhongKham.Models;
 using PhongKham.ViewModels;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System.Text;
 
 namespace PhongKham.Controllers;
@@ -46,6 +49,29 @@ public class PatientPortalController(
         var model = await BuildModel("AppointmentDetail");
         model.Appointment = model.Appointments.FirstOrDefault(x => x.Id == id)
             ?? model.Appointments.FirstOrDefault();
+        return View("Portal", model);
+    }
+
+    public async Task<IActionResult> EditAppointment(int id)
+    {
+        var model = await BuildModel("EditAppointment");
+        model.Appointment = model.Appointments.FirstOrDefault(x => x.Id == id);
+        if (model.Appointment is null || !CanEditAppointment(model.Appointment))
+        {
+            TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
+            return RedirectToAction(nameof(Appointments));
+        }
+        return View("Portal", model);
+    }
+
+    public async Task<IActionResult> ResultDetail(int id)
+    {
+        var model = await BuildModel("ResultDetail");
+        model.MedicalRecord = model.MedicalRecords.FirstOrDefault(x => x.Id == id);
+        if (model.MedicalRecord is null)
+        {
+            return NotFound();
+        }
         return View("Portal", model);
     }
 
@@ -117,12 +143,18 @@ public class PatientPortalController(
         {
             time = new TimeOnly(8, 0);
         }
+        var scheduledAt = appointmentDate.Date.Add(time.ToTimeSpan());
+        if (await HasDoctorConflictAsync(doctorId, scheduledAt))
+        {
+            TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
+            return RedirectToAction(nameof(Book), new { doctorId });
+        }
 
         var appointment = new Appointment
         {
             PatientId = patient.Id,
             DoctorId = doctorId,
-            AppointmentTime = appointmentDate.Date.Add(time.ToTimeSpan()),
+            AppointmentTime = scheduledAt,
             Reason = symptoms,
             Fee = 150000,
             Status = "Đã đặt lịch"
@@ -145,6 +177,40 @@ public class PatientPortalController(
         await db.SaveChangesAsync();
         TempData["PortalSuccess"] = "Đặt lịch thành công. Phòng khám sẽ xác nhận sớm.";
         return RedirectToAction(nameof(Appointments));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAppointment(AppointmentEditInput input)
+    {
+        var (_, patient) = await GetCurrentAsync();
+        var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == input.Id && x.PatientId == patient.Id);
+        if (appointment is null || !CanEditAppointment(appointment))
+        {
+            TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
+            return RedirectToAction(nameof(Appointments));
+        }
+        if (!ModelState.IsValid || input.AppointmentDate.Date < DateTime.Today
+            || !TimeOnly.TryParse(input.AppointmentTime, out var time)
+            || !await db.Doctors.AnyAsync(x => x.Id == input.DoctorId))
+        {
+            TempData["PortalError"] = "Thông tin lịch khám chưa hợp lệ.";
+            return RedirectToAction(nameof(EditAppointment), new { id = input.Id });
+        }
+
+        var scheduledAt = input.AppointmentDate.Date.Add(time.ToTimeSpan());
+        if (await HasDoctorConflictAsync(input.DoctorId, scheduledAt, appointment.Id))
+        {
+            TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
+            return RedirectToAction(nameof(EditAppointment), new { id = input.Id });
+        }
+
+        appointment.DoctorId = input.DoctorId;
+        appointment.AppointmentTime = scheduledAt;
+        appointment.Reason = input.Symptoms.Trim();
+        appointment.Status = "Đã đặt lịch";
+        await db.SaveChangesAsync();
+        TempData["PortalSuccess"] = "Đã cập nhật lịch khám.";
+        return RedirectToAction(nameof(AppointmentDetail), new { id = appointment.Id });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -305,51 +371,146 @@ public class PatientPortalController(
             $"ho-so-kham-{patient.Id}-{DateTime.Today:yyyyMMdd}.txt");
     }
 
+    public async Task<IActionResult> DownloadPrescriptionPdf(int id)
+    {
+        var (_, patient) = await GetCurrentAsync();
+        var prescription = await db.Prescriptions.Include(x => x.Doctor)
+            .FirstOrDefaultAsync(x => x.Id == id && x.PatientId == patient.Id);
+        if (prescription is null) return NotFound();
+
+        var details = await db.PrescriptionDetails.Include(x => x.Medicine)
+            .Where(x => x.PrescriptionId == prescription.Id).ToListAsync();
+        var pdf = Document.Create(document =>
+        {
+            document.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(36);
+                page.DefaultTextStyle(x => x.FontSize(11));
+                page.Header().Column(column =>
+                {
+                    column.Item().Text("PHÒNG KHÁM AN TÂM").Bold().FontSize(18).FontColor(Colors.Teal.Darken2);
+                    column.Item().Text($"ĐƠN THUỐC DT-{prescription.Id:D5}").Bold().FontSize(15);
+                });
+                page.Content().PaddingVertical(18).Column(column =>
+                {
+                    column.Spacing(10);
+                    column.Item().Text($"Bệnh nhân: {patient.FullName}");
+                    column.Item().Text($"Ngày sinh: {patient.DateOfBirth:dd/MM/yyyy}    Giới tính: {patient.Gender}");
+                    column.Item().Text($"Bác sĩ: {prescription.Doctor?.FullName}");
+                    column.Item().Text($"Ngày kê: {prescription.CreatedAt:dd/MM/yyyy HH:mm}");
+                    column.Item().Text($"Chẩn đoán: {prescription.Diagnosis}").Bold();
+                    column.Item().PaddingTop(8).Table(table =>
+                    {
+                        table.ColumnsDefinition(columns =>
+                        {
+                            columns.RelativeColumn(2);
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                            columns.RelativeColumn();
+                        });
+                        table.Header(header =>
+                        {
+                            foreach (var title in new[] { "Thuốc", "Liều dùng", "Số lần dùng", "Thời gian" })
+                                header.Cell().Background(Colors.Teal.Lighten4).Padding(6).Text(title).Bold();
+                        });
+                        foreach (var detail in details)
+                        {
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Text($"{detail.Medicine?.Name} ({detail.Quantity} {detail.Medicine?.Unit})");
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Text(detail.Dosage);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Text(detail.Route);
+                            table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Text(detail.UsageInstruction);
+                        }
+                    });
+                    column.Item().PaddingTop(10).Text($"Ghi chú: {prescription.Instructions}");
+                });
+                page.Footer().AlignCenter().Text(text =>
+                {
+                    text.Span("An Tâm Clinic · ");
+                    text.CurrentPageNumber();
+                });
+            });
+        }).GeneratePdf();
+        return File(pdf, "application/pdf", $"don-thuoc-DT-{prescription.Id:D5}.pdf");
+    }
+
     private async Task<IActionResult> Portal(string page) => View("Portal", await BuildModel(page));
 
     private async Task<PatientPortalViewModel> BuildModel(string page)
     {
         var (user, patient) = await GetCurrentAsync();
-        await EnsureDefaultNotificationsAsync(user);
-        var appointments = await db.Appointments
-            .Include(x => x.Doctor)
-            .Include(x => x.Patient)
-            .Where(x => x.PatientId == patient.Id)
-            .OrderByDescending(x => x.AppointmentTime)
-            .ToListAsync();
-        var records = await db.MedicalRecords
-            .Include(x => x.Doctor)
-            .Where(x => x.PatientId == patient.Id)
-            .OrderByDescending(x => x.VisitDate)
-            .ToListAsync();
-        var prescriptions = await db.Prescriptions
-            .Include(x => x.Doctor)
-            .Where(x => x.PatientId == patient.Id)
-            .OrderByDescending(x => x.CreatedAt)
-            .ToListAsync();
-
-        return new PatientPortalViewModel
+        var model = new PatientPortalViewModel
         {
             Page = page,
             Patient = patient,
-            User = user,
-            Doctors = await db.Doctors.OrderBy(x => x.FullName).ToListAsync(),
-            Specialties = await db.Specialties.OrderBy(x => x.Name).ToListAsync(),
-            Appointments = appointments,
-            MedicalRecords = records,
-            Prescriptions = prescriptions,
-            PrescriptionDetails = await db.PrescriptionDetails.Include(x => x.Medicine)
-                .Where(x => prescriptions.Select(p => p.Id).Contains(x.PrescriptionId)).ToListAsync(),
-            Invoices = await db.Invoices.Include(x => x.Payments).Include(x => x.Appointment)
-                .Where(x => x.PatientId == patient.Id && x.PaymentStatus != "Cancelled")
-                .OrderByDescending(x => x.CreatedAt).ToListAsync(),
-            Notifications = await db.Notifications.Where(x => x.UserId == user.Id || x.UserId == "")
-                .OrderByDescending(x => x.CreatedAt).ToListAsync(),
-            ChatMessages = await db.AuditLogs.Where(x => x.UserId == user.Id && x.EntityName == "PatientChat")
-                .OrderBy(x => x.CreatedAt).ToListAsync(),
-            PatientCount = await db.Patients.CountAsync(),
-            AppointmentCount = await db.Appointments.CountAsync()
+            User = user
         };
+
+        var needsDoctors = page is "Home" or "Book" or "EditAppointment";
+        var needsAppointments = page is "Home" or "Appointments" or "AppointmentDetail" or "EditAppointment";
+        var needsRecords = page is "Results" or "ResultDetail" or "History";
+        var needsPrescriptions = page is "Prescriptions" or "ResultDetail" or "History";
+
+        if (needsDoctors)
+        {
+            model.Doctors = await db.Doctors.AsNoTracking().OrderBy(x => x.FullName).ToListAsync();
+            model.Specialties = await db.Specialties.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+        }
+        if (needsAppointments)
+        {
+            model.Appointments = await db.Appointments.AsNoTracking()
+                .Include(x => x.Doctor)
+                .Where(x => x.PatientId == patient.Id)
+                .OrderByDescending(x => x.AppointmentTime).ToListAsync();
+        }
+        if (needsRecords)
+        {
+            model.MedicalRecords = await db.MedicalRecords.AsNoTracking()
+                .Include(x => x.Doctor)
+                .Where(x => x.PatientId == patient.Id)
+                .OrderByDescending(x => x.VisitDate).ToListAsync();
+        }
+        if (needsPrescriptions)
+        {
+            model.Prescriptions = await db.Prescriptions.AsNoTracking()
+                .Include(x => x.Doctor)
+                .Where(x => x.PatientId == patient.Id)
+                .OrderByDescending(x => x.CreatedAt).ToListAsync();
+        }
+        if (page == "Prescriptions")
+        {
+            var prescriptionIds = model.Prescriptions.Select(x => x.Id).ToList();
+            model.PrescriptionDetails = await db.PrescriptionDetails.AsNoTracking()
+                .Include(x => x.Medicine)
+                .Where(x => prescriptionIds.Contains(x.PrescriptionId)).ToListAsync();
+        }
+        if (page == "Payments")
+        {
+            model.Invoices = await db.Invoices.AsNoTracking()
+                .Include(x => x.Payments).Include(x => x.Appointment)
+                .Where(x => x.PatientId == patient.Id && x.PaymentStatus != "Cancelled")
+                .OrderByDescending(x => x.CreatedAt).ToListAsync();
+        }
+        if (page == "Notifications")
+        {
+            await EnsureDefaultNotificationsAsync(user);
+            model.Notifications = await db.Notifications.AsNoTracking()
+                .Where(x => x.UserId == user.Id || x.UserId == "")
+                .OrderByDescending(x => x.CreatedAt).ToListAsync();
+        }
+        if (page == "Chat")
+        {
+            model.ChatMessages = await db.AuditLogs.AsNoTracking()
+                .Where(x => x.UserId == user.Id && x.EntityName == "PatientChat")
+                .OrderBy(x => x.CreatedAt).ToListAsync();
+        }
+        if (page == "Home")
+        {
+            model.PatientCount = await db.Patients.CountAsync();
+            model.AppointmentCount = await db.Appointments.CountAsync();
+        }
+
+        return model;
     }
 
     private async Task<(ApplicationUser User, Patient Patient)> GetCurrentAsync()
@@ -372,6 +533,20 @@ public class PatientPortalController(
         }
         return (user, patient);
     }
+
+    private async Task<bool> HasDoctorConflictAsync(int doctorId, DateTime appointmentTime, int? excludeId = null)
+    {
+        var start = appointmentTime.AddMinutes(-29);
+        var end = appointmentTime.AddMinutes(29);
+        return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
+            && (!excludeId.HasValue || x.Id != excludeId.Value)
+            && x.Status != "Đã hủy" && x.Status != "Hủy"
+            && x.AppointmentTime >= start && x.AppointmentTime <= end);
+    }
+
+    private static bool CanEditAppointment(Appointment appointment) =>
+        appointment.Status != "Hoàn tất" && appointment.Status != "Đã hủy"
+        && appointment.Status != "Hủy" && appointment.AppointmentTime > DateTime.Now.AddHours(4);
 
     private async Task EnsureDefaultNotificationsAsync(ApplicationUser user)
     {
