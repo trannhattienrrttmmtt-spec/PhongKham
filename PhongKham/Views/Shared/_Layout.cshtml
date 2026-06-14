@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@{ var currentUserName = User.Identity?.Name ?? ""; }
 <html lang="vi">
 <head>
     <meta charset="utf-8" />
@@ -14,7 +15,7 @@
 {
     <div class="app-frame">
         <aside class="clinic-sidebar">
-            <a class="brand-block" asp-controller="Clinic" asp-action="Dashboard">
+            <a class="brand-block" asp-controller="@(User.IsInRole("BenhNhan") ? "PatientPortal" : "Clinic")" asp-action="@(User.IsInRole("BenhNhan") ? "Home" : "Dashboard")">
                 <span class="brand-mark">+</span>
                 <span>
                     <strong>An Tam Clinic</strong>
@@ -22,7 +23,23 @@
                 </span>
             </a>
             <nav class="side-nav">
-                <a asp-controller="Clinic" asp-action="Dashboard"><span>TC</span>Trang chủ</a>
+                @if (User.IsInRole("BenhNhan"))
+                {
+                    <a asp-controller="PatientPortal" asp-action="Home"><span>TC</span>Trang chủ</a>
+                    <a asp-controller="PatientPortal" asp-action="Profile"><span>HS</span>Hồ sơ cá nhân</a>
+                    <a asp-controller="PatientPortal" asp-action="Book"><span>ĐL</span>Đặt lịch khám</a>
+                    <a asp-controller="PatientPortal" asp-action="Appointments"><span>LK</span>Lịch khám</a>
+                    <a asp-controller="PatientPortal" asp-action="Results"><span>KQ</span>Kết quả khám</a>
+                    <a asp-controller="PatientPortal" asp-action="Prescriptions"><span>ĐT</span>Đơn thuốc</a>
+                    <a asp-controller="PatientPortal" asp-action="History"><span>LS</span>Lịch sử khám</a>
+                    <a asp-controller="PatientPortal" asp-action="Payments"><span>TT</span>Thanh toán</a>
+                    <a asp-controller="PatientPortal" asp-action="Notifications"><span>TB</span>Thông báo</a>
+                    <a asp-controller="PatientPortal" asp-action="Chat"><span>CH</span>Chat phòng khám</a>
+                }
+                else
+                {
+                    <a asp-controller="Clinic" asp-action="Dashboard"><span>TC</span>Trang chủ</a>
+                }
                 @if (User.IsInRole("Admin") || User.IsInRole("BacSi"))
                 {
                     <a asp-controller="Clinic" asp-action="Patients"><span>BN</span>Bệnh nhân</a>
@@ -32,7 +49,7 @@
                     <a asp-controller="Clinic" asp-action="Doctors"><span>BS</span>Bác sĩ</a>
                     <a asp-controller="Clinic" asp-action="Rooms"><span>PB</span>Phòng bệnh</a>
                 }
-                @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("BenhNhan"))
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi"))
                 {
                     <a asp-controller="Clinic" asp-action="Appointments"><span>LH</span>Lịch hẹn</a>
                 }
@@ -51,11 +68,13 @@
                 @if (User.IsInRole("Admin"))
                 {
                     <a asp-controller="Clinic" asp-action="Revenue"><span>BC</span>Doanh thu</a>
+                    <a asp-controller="AdminPatientPortal" asp-action="Index"><span>CB</span>Cổng bệnh nhân</a>
+                    <a asp-controller="AdminPatientPortal" asp-action="Index" asp-fragment="admin-chat"><span>CH</span>Chat bệnh nhân</a>
                 }
             </nav>
             <div class="sidebar-status">
                 <span class="status-dot"></span>
-                Sẵn sàng tiếp nhận
+                @(User.IsInRole("BenhNhan") ? "Hỗ trợ trực tuyến" : "Sẵn sàng tiếp nhận")
             </div>
         </aside>
 
@@ -66,6 +85,7 @@
                     <strong>@ViewData["Title"]</strong>
                 </div>
                 <form asp-controller="Account" asp-action="Logout" method="post" class="operator-chip logout-chip">
+                    <span class="user-avatar-small">@(string.IsNullOrEmpty(currentUserName) ? "U" : currentUserName[..1].ToUpper())</span>
                     <span>@User.Identity.Name</span>
                     <strong>
                         @(User.IsInRole("Admin") ? "Admin" :

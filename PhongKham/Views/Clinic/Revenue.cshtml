@@ -1,10 +1,24 @@
-@{ ViewData["Title"] = "Báo cáo doanh thu"; }
+@{
+    ViewData["Title"] = "Báo cáo doanh thu";
+    var invoices = (List<Invoice>)ViewBag.Invoices;
+    var from = (DateTime)ViewBag.From;
+    var to = (DateTime)ViewBag.To;
+}
 
 <div class="page-title">
     <div>
         <h1>Báo cáo doanh thu</h1>
         <div class="text-muted">Tổng hợp tiền khám, tiền thuốc và giao dịch gần đây.</div>
     </div>
+</div>
+
+<div class="panel compact-panel">
+    <form asp-action="Revenue" method="get" class="admin-filter-bar">
+        <label><span>Từ ngày</span><input name="from" type="date" value="@from.ToString("yyyy-MM-dd")" class="form-control" /></label>
+        <label><span>Đến ngày</span><input name="to" type="date" value="@to.ToString("yyyy-MM-dd")" class="form-control" /></label>
+        <button class="btn btn-primary">Xem báo cáo</button>
+        <a class="btn btn-outline-primary" asp-action="ExportRevenue" asp-route-from="@from.ToString("yyyy-MM-dd")" asp-route-to="@to.ToString("yyyy-MM-dd")">Xuất CSV</a>
+    </form>
 </div>
 
 <div class="metric-grid">
@@ -16,21 +30,22 @@
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Giao dịch gần đây</h2>
-            <p>Các khoản thu mới nhất đã được ghi nhận trong hệ thống.</p>
+            <h2>Hóa đơn đã thanh toán</h2>
+            <p>Từ @from.ToString("dd/MM/yyyy") đến @to.ToString("dd/MM/yyyy").</p>
         </div>
     </div>
     <div class="table-responsive">
         <table class="table">
-            <thead><tr><th>Nguồn</th><th>Ngày</th><th>Bệnh nhân</th><th>Số tiền</th></tr></thead>
+            <thead><tr><th>Mã hóa đơn</th><th>Ngày thanh toán</th><th>Bệnh nhân</th><th>Khám</th><th>Thuốc</th><th>Tổng tiền</th><th>Phương thức</th></tr></thead>
             <tbody>
-            @foreach (Appointment x in ViewBag.Appointments)
+            @foreach (var invoice in invoices)
             {
-                <tr><td>Phí khám</td><td>@x.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.Fee.ToString("N0") &#273;</td></tr>
+                var payment = invoice.Payments.OrderByDescending(x => x.PaidAt).First();
+                <tr><td><strong>@invoice.InvoiceCode</strong></td><td>@payment.PaidAt.ToString("dd/MM/yyyy HH:mm")</td><td>@invoice.Patient?.FullName</td><td>@invoice.ExaminationFee.ToString("N0") đ</td><td>@invoice.MedicineFee.ToString("N0") đ</td><td><strong>@invoice.TotalAmount.ToString("N0") đ</strong></td><td>@payment.Method</td></tr>
             }
-            @foreach (Prescription x in ViewBag.Prescriptions)
+            @if (!invoices.Any())
             {
-                <tr><td>Đơn thuốc</td><td>@x.CreatedAt.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.TotalAmount.ToString("N0") &#273;</td></tr>
+                <tr><td colspan="7" class="text-center text-muted">Không có giao dịch đã thanh toán trong khoảng ngày này.</td></tr>
             }
             </tbody>
         </table>

@@ -1,3 +1,6 @@
+-- Import this UTF-8 file with:
+-- sqlcmd -S .\MSSQLSERVER03 -E -C -I -f 65001 -i scripts\PhongKhamFullDb.sql
+
 USE [master];
 GO
 

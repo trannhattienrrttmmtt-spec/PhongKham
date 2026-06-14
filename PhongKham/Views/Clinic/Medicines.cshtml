@@ -1,11 +1,34 @@
 @model List<Medicine>
-@{ ViewData["Title"] = "Kho thuốc"; }
+@{
+    ViewData["Title"] = "Kho thuốc";
+    var transactions = (List<InventoryTransaction>)ViewBag.InventoryTransactions;
+}
 
 <div class="page-title">
     <div>
         <h1>Kho thuốc</h1>
         <div class="text-muted">Theo dõi tồn kho, hạn dùng và cảnh báo thuốc sắp hết.</div>
     </div>
+</div>
+
+<div class="metric-grid inventory-metrics">
+    <div class="metric accent-amber"><span>Thuốc sắp hết</span><strong>@ViewBag.LowStockCount</strong><small>Tồn dưới 30 đơn vị</small></div>
+    <div class="metric accent-rose"><span>Sắp hết hạn</span><strong>@ViewBag.ExpiringCount</strong><small>Trong vòng 60 ngày</small></div>
+    <div class="metric accent-blue"><span>Mặt hàng đang hiển thị</span><strong>@Model.Count</strong><small>Theo bộ lọc hiện tại</small></div>
+</div>
+
+<div class="panel compact-panel">
+    <form asp-action="Medicines" method="get" class="admin-filter-bar">
+        <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Tìm tên thuốc..." />
+        <select name="stock" class="form-select">
+            <option value="">Tất cả trạng thái</option>
+            <option value="low" selected="@(ViewBag.Stock == "low")">Sắp hết</option>
+            <option value="expiring" selected="@(ViewBag.Stock == "expiring")">Sắp hết hạn</option>
+            <option value="expired" selected="@(ViewBag.Stock == "expired")">Đã hết hạn</option>
+        </select>
+        <button class="btn btn-primary">Lọc kho</button>
+        <a asp-action="Medicines" class="btn btn-outline-primary">Xóa lọc</a>
+    </form>
 </div>
 
 <div class="panel">
@@ -34,7 +57,7 @@
     </div>
     <div class="table-responsive">
         <table class="table">
-            <thead><tr><th>Thuốc</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Hạn dùng</th><th>Cảnh báo</th></tr></thead>
+            <thead><tr><th>Thuốc</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Hạn dùng</th><th>Cảnh báo</th><th>Điều chỉnh kho</th></tr></thead>
             <tbody>
             @foreach (var x in Model)
             {
@@ -44,9 +67,33 @@
                     <td>@x.QuantityInStock</td>
                     <td>@x.UnitPrice.ToString("N0") &#273;</td>
                     <td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td>
-                    <td><span class="badge badge-soft">@(x.QuantityInStock < 30 ? "Sắp hết" : "Ổn định")</span></td>
+                    <td><span class="badge badge-soft">@(x.ExpiryDate < DateTime.Today ? "Đã hết hạn" : x.ExpiryDate <= DateTime.Today.AddDays(60) ? "Sắp hết hạn" : x.QuantityInStock < 30 ? "Sắp hết" : "Ổn định")</span></td>
+                    <td>
+                        <form asp-action="AdjustMedicineStock" method="post" class="stock-adjust-form">
+                            <input type="hidden" name="id" value="@x.Id" />
+                            <input name="quantity" type="number" class="form-control form-control-sm" placeholder="+ nhập / - xuất" required />
+                            <input name="reason" class="form-control form-control-sm" placeholder="Lý do / mã phiếu" />
+                            <button class="btn btn-sm btn-outline-primary">Cập nhật</button>
+                        </form>
+                    </td>
                 </tr>
             }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><div><h2>Nhật ký nhập xuất gần đây</h2><p>Theo dõi thay đổi tồn kho do điều chỉnh và kê đơn.</p></div></div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Thời gian</th><th>Thuốc</th><th>Loại</th><th>Số lượng</th><th>Tham chiếu</th><th>Người thực hiện</th></tr></thead>
+            <tbody>
+            @foreach (var item in transactions)
+            {
+                <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td><td>@item.Medicine?.Name</td><td>@item.TransactionType</td><td>@item.Quantity</td><td>@item.ReferenceCode</td><td>@item.CreatedBy</td></tr>
+            }
+            @if (!transactions.Any()){<tr><td colspan="6" class="text-center text-muted">Chưa có giao dịch kho.</td></tr>}
             </tbody>
         </table>
     </div>

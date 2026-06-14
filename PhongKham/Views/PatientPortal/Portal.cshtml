@@ -1,0 +1,393 @@
+@model PatientPortalViewModel
+@{
+    var title = Model.Page switch
+    {
+        "Home" => "Trang chủ bệnh nhân",
+        "Profile" => "Hồ sơ cá nhân",
+        "Book" => "Đặt lịch khám",
+        "Appointments" => "Danh sách lịch khám",
+        "AppointmentDetail" => "Chi tiết lịch khám",
+        "Results" => "Kết quả khám bệnh",
+        "Prescriptions" => "Đơn thuốc",
+        "History" => "Lịch sử khám bệnh",
+        "Payments" => "Thanh toán",
+        "Notifications" => "Thông báo",
+        "Chat" => "Chat với phòng khám",
+        _ => "Cổng bệnh nhân"
+    };
+    ViewData["Title"] = title;
+    var upcoming = Model.Appointments.Where(x => x.AppointmentTime >= DateTime.Today && x.Status != "Đã hủy").OrderBy(x => x.AppointmentTime).ToList();
+    var featuredSpecialties = Model.Specialties.Any()
+        ? Model.Specialties.Take(4).ToList()
+        : new List<Specialty>
+        {
+            new() { Name = "Nội tổng quát", Description = "Khám và điều trị các bệnh lý thường gặp." },
+            new() { Name = "Tim mạch", Description = "Tầm soát, theo dõi sức khỏe tim mạch." },
+            new() { Name = "Nhi khoa", Description = "Chăm sóc sức khỏe toàn diện cho trẻ." },
+            new() { Name = "Tai Mũi Họng", Description = "Chẩn đoán và điều trị chuyên sâu." }
+        };
+}
+
+@if (TempData["PortalSuccess"] is string success)
+{
+    <div class="portal-toast success">@success</div>
+}
+@if (TempData["PortalError"] is string error)
+{
+    <div class="portal-toast error">@error</div>
+}
+
+@if (Model.Page == "Home")
+{
+    <section class="patient-hero">
+        <div class="patient-hero-copy">
+            <span class="portal-kicker">Chăm sóc sức khỏe chủ động</span>
+            <h1>Xin chào, @Model.Patient.FullName</h1>
+            <p>Đặt lịch nhanh, theo dõi kết quả khám và quản lý sức khỏe của bạn trong một nơi duy nhất.</p>
+            <div class="hero-actions">
+                <a class="btn btn-light btn-lg" asp-action="Book">Đặt lịch ngay</a>
+                <a class="btn btn-ghost-light btn-lg" asp-action="Appointments">Xem lịch của tôi</a>
+            </div>
+            <div class="hero-trust"><span>✓ Bác sĩ chuyên môn cao</span><span>✓ Quy trình nhanh gọn</span><span>✓ Bảo mật hồ sơ</span></div>
+        </div>
+        <div class="hero-doctor-card">
+            <div class="doctor-illustration">✚</div>
+            <div><strong>Phòng Khám An Tâm</strong><span>Đồng hành cùng sức khỏe gia đình bạn</span></div>
+        </div>
+    </section>
+
+    <div class="portal-stat-grid">
+        <div><span class="stat-icon">BS</span><strong>@Model.Doctors.Count+</strong><small>Bác sĩ giàu kinh nghiệm</small></div>
+        <div><span class="stat-icon">BN</span><strong>@Model.PatientCount+</strong><small>Bệnh nhân tin tưởng</small></div>
+        <div><span class="stat-icon">LH</span><strong>@Model.AppointmentCount+</strong><small>Lượt khám đã phục vụ</small></div>
+        <div><span class="stat-icon">24</span><strong>24/7</strong><small>Hỗ trợ trực tuyến</small></div>
+    </div>
+
+    @if (upcoming.Any())
+    {
+        var next = upcoming.First();
+        <section class="next-appointment">
+            <div class="next-date"><strong>@next.AppointmentTime.ToString("dd")</strong><span>Tháng @next.AppointmentTime.Month</span></div>
+            <div><span class="portal-kicker">Lịch khám sắp tới</span><h2>@next.Doctor?.FullName</h2><p>@next.AppointmentTime.ToString("dddd, dd/MM/yyyy • HH:mm") · @next.Reason</p></div>
+            <a class="btn btn-outline-primary" asp-action="AppointmentDetail" asp-route-id="@next.Id">Xem chi tiết</a>
+        </section>
+    }
+
+    <section class="portal-section">
+        <div class="section-heading"><div><span class="portal-kicker">Dịch vụ của chúng tôi</span><h2>Chuyên khoa nổi bật</h2></div><a asp-action="Book">Đặt lịch khám →</a></div>
+        <div class="specialty-grid">
+            @{ var specialtyIndex = 0; }
+            @foreach (var item in featuredSpecialties)
+            {
+                specialtyIndex++;
+                <article class="specialty-card"><span class="specialty-icon">@specialtyIndex.ToString("D2")</span><h3>@item.Name</h3><p>@item.Description</p><a asp-action="Book" asp-route-specialty="@item.Name">Khám chuyên khoa →</a></article>
+            }
+        </div>
+    </section>
+
+    <section class="portal-section">
+        <div class="section-heading"><div><span class="portal-kicker">Đội ngũ chuyên môn</span><h2>Bác sĩ nổi bật</h2></div></div>
+        <div class="doctor-grid">
+            @foreach (var doctor in Model.Doctors.Take(3))
+            {
+                <article class="doctor-card">
+                    <div class="doctor-avatar">@doctor.FullName.Replace("BS. ", "").Split(' ').Last()[0]</div>
+                    <div><span>@doctor.Specialty</span><h3>@doctor.FullName</h3><p>Hơn 10 năm kinh nghiệm khám và điều trị.</p></div>
+                    <a asp-action="Book" asp-route-doctorId="@doctor.Id" class="btn btn-sm btn-outline-primary">Đặt lịch</a>
+                </article>
+            }
+        </div>
+    </section>
+
+    <section class="portal-section">
+        <div class="section-heading"><div><span class="portal-kicker">Kiến thức hữu ích</span><h2>Tin tức sức khỏe</h2></div></div>
+        <div class="news-grid">
+            <article><div class="news-cover teal">SỨC KHỎE</div><small>12/06/2026 · 5 phút đọc</small><h3>7 thói quen nhỏ giúp trái tim khỏe mạnh mỗi ngày</h3><p>Những thay đổi đơn giản trong sinh hoạt giúp bảo vệ tim mạch lâu dài.</p></article>
+            <article><div class="news-cover blue">DINH DƯỠNG</div><small>10/06/2026 · 4 phút đọc</small><h3>Chế độ ăn cân bằng cho người bận rộn</h3><p>Gợi ý thực đơn đủ chất, dễ chuẩn bị cho cả gia đình.</p></article>
+            <article><div class="news-cover mint">PHÒNG BỆNH</div><small>08/06/2026 · 6 phút đọc</small><h3>Khi nào bạn nên khám sức khỏe tổng quát?</h3><p>Các dấu hiệu và mốc thời gian quan trọng bạn không nên bỏ qua.</p></article>
+        </div>
+    </section>
+}
+else if (Model.Page == "Profile")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Tài khoản của tôi</span><h1>Hồ sơ cá nhân</h1><p>Cập nhật thông tin để phòng khám phục vụ bạn tốt hơn.</p></div></div>
+    <div class="profile-layout">
+        <aside class="profile-card">
+            <div class="profile-avatar">@Model.Patient.FullName.Split(' ').Last()[0]</div>
+            <h2>@Model.Patient.FullName</h2><p>@Model.User.Email</p>
+            <span class="verified-badge">✓ Hồ sơ đã xác thực</span>
+            <div class="profile-meta"><span>Mã bệnh nhân</span><strong>BN-@Model.Patient.Id.ToString("D5")</strong></div>
+        </aside>
+        <div class="profile-content">
+            <form asp-action="UpdateProfile" method="post" class="portal-card profile-form">
+                <div class="card-heading"><div><h2>Thông tin cá nhân</h2><p>Các thông tin cơ bản trong hồ sơ khám bệnh.</p></div><button class="btn btn-primary">Lưu thay đổi</button></div>
+                <div class="field-grid">
+                    <label><span>Họ và tên</span><input name="FullName" value="@Model.Patient.FullName" class="form-control" /></label>
+                    <label><span>Email</span><input value="@Model.User.Email" class="form-control" disabled /></label>
+                    <label><span>Số điện thoại</span><input name="Phone" value="@Model.Patient.Phone" class="form-control" /></label>
+                    <label><span>Ngày sinh</span><input name="DateOfBirth" type="date" value="@Model.Patient.DateOfBirth.ToString("yyyy-MM-dd")" class="form-control" /></label>
+                    <label><span>Giới tính</span><select name="Gender" class="form-select"><option selected="@(Model.Patient.Gender == "Nam")">Nam</option><option selected="@(Model.Patient.Gender == "Nữ")">Nữ</option><option>Khác</option></select></label>
+                    <label class="span-2"><span>Địa chỉ</span><input name="Address" value="@Model.Patient.Address" class="form-control" /></label>
+                </div>
+            </form>
+            <form asp-action="ChangePassword" method="post" class="portal-card password-form">
+                <div class="card-heading"><div><h2>Đổi mật khẩu</h2><p>Nên sử dụng mật khẩu mạnh và không dùng lại ở nơi khác.</p></div></div>
+                <div class="field-grid password-grid">
+                    <label><span>Mật khẩu hiện tại</span><input name="CurrentPassword" type="password" class="form-control" /></label>
+                    <label><span>Mật khẩu mới</span><input name="NewPassword" type="password" class="form-control" /></label>
+                    <label><span>Xác nhận mật khẩu</span><input name="ConfirmPassword" type="password" class="form-control" /></label>
+                    <button class="btn btn-outline-primary">Cập nhật mật khẩu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+else if (Model.Page == "Book")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Đặt lịch trực tuyến</span><h1>Đặt lịch khám</h1><p>Chọn chuyên khoa, bác sĩ và thời gian phù hợp với bạn.</p></div><span class="step-badge">Hoàn tất trong 2 phút</span></div>
+    <form asp-action="CreateAppointment" method="post" class="booking-layout">
+        <div class="portal-card booking-form">
+            <div class="form-step"><span>1</span><div><h2>Chọn chuyên khoa và bác sĩ</h2><p>Danh sách bác sĩ đang có lịch tại phòng khám.</p></div></div>
+            <div class="field-grid">
+                <label><span>Chuyên khoa</span><select class="form-select" id="specialtySelect"><option value="">Tất cả chuyên khoa</option>@foreach(var specialty in featuredSpecialties){<option value="@specialty.Name" selected="@(Model.SelectedSpecialty == specialty.Name)">@specialty.Name</option>}</select></label>
+                <label><span>Bác sĩ</span><select name="doctorId" id="doctorSelect" class="form-select" required>@foreach(var doctor in Model.Doctors){<option value="@doctor.Id" data-specialty="@doctor.Specialty" selected="@(Model.SelectedDoctorId == doctor.Id)">@doctor.FullName — @doctor.Specialty</option>}</select></label>
+            </div>
+            <div class="form-step"><span>2</span><div><h2>Chọn ngày và giờ khám</h2><p>Vui lòng đến trước giờ hẹn khoảng 15 phút.</p></div></div>
+            <div class="field-grid">
+                <label><span>Ngày khám</span><input name="appointmentDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@DateTime.Today.AddDays(1).ToString("yyyy-MM-dd")" class="form-control" required /></label>
+                <label><span>Giờ khám</span><select name="appointmentTime" class="form-select"><option>08:00</option><option>08:30</option><option>09:00</option><option>09:30</option><option>14:00</option><option>14:30</option><option>15:00</option><option>15:30</option></select></label>
+                <label class="span-2"><span>Triệu chứng / lý do khám</span><textarea name="symptoms" class="form-control" rows="5" placeholder="Mô tả triệu chứng, thời gian xuất hiện và các thông tin cần lưu ý..." required></textarea></label>
+            </div>
+        </div>
+        <aside class="portal-card booking-summary">
+            <span class="portal-kicker">Tóm tắt lịch hẹn</span><h2>Phí khám dự kiến</h2>
+            <div class="price-row"><span>Khám chuyên khoa</span><strong>150.000 đ</strong></div>
+            <div class="price-row"><span>Phí đặt lịch</span><strong>Miễn phí</strong></div>
+            <div class="summary-total"><span>Tổng dự kiến</span><strong>150.000 đ</strong></div>
+            <ul><li>Đổi lịch miễn phí trước 4 giờ</li><li>Nhận nhắc lịch tự động</li><li>Thanh toán sau khi khám</li></ul>
+            <button class="btn btn-primary btn-lg w-100">Xác nhận đặt lịch</button>
+        </aside>
+    </form>
+}
+else if (Model.Page == "Appointments")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Quản lý lịch hẹn</span><h1>Danh sách lịch khám</h1><p>Theo dõi trạng thái và thông tin các lịch khám của bạn.</p></div><a class="btn btn-primary" asp-action="Book">+ Đặt lịch mới</a></div>
+    <div class="portal-filter" data-appointment-filter><div class="filter-tabs"><button type="button" class="active" data-status="all">Tất cả</button><button type="button" data-status="upcoming">Sắp tới</button><button type="button" data-status="Hoàn tất">Hoàn tất</button><button type="button" data-status="Đã hủy">Đã hủy</button></div><input class="form-control" data-appointment-search placeholder="Tìm theo mã lịch hoặc bác sĩ..." /></div>
+    <div class="portal-card table-card">
+        <div class="table-responsive">
+            <table class="table portal-table">
+                <thead><tr><th>Mã lịch khám</th><th>Bác sĩ</th><th>Chuyên khoa</th><th>Ngày khám</th><th>Giờ</th><th>Trạng thái</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var item in Model.Appointments)
+                {
+                    <tr data-appointment-row data-status="@item.Status" data-date="@item.AppointmentTime.ToString("yyyy-MM-dd")"><td><strong>LH-@item.Id.ToString("D5")</strong></td><td>@item.Doctor?.FullName</td><td>@item.Doctor?.Specialty</td><td>@item.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@item.AppointmentTime.ToString("HH:mm")</td><td><span class="status-pill">@item.Status</span></td><td class="row-actions"><a asp-action="AppointmentDetail" asp-route-id="@item.Id">Chi tiết</a>@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch</a>}@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post" data-confirm="Bạn chắc chắn muốn hủy lịch khám này?"><input type="hidden" name="id" value="@item.Id"/><button>Hủy lịch</button></form>}</td></tr>
+                }
+                @if (!Model.Appointments.Any())
+                {
+                    <tr><td colspan="7"><div class="portal-empty"><strong>Bạn chưa có lịch khám</strong><span>Đặt lịch với bác sĩ phù hợp chỉ trong vài bước.</span><a asp-action="Book" class="btn btn-primary">Đặt lịch ngay</a></div></td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (Model.Page == "EditAppointment")
+{
+    var item = Model.Appointment!;
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Appointments">← Quay lại danh sách</a><span class="portal-kicker">Điều chỉnh lịch hẹn</span><h1>Sửa lịch khám</h1><p>Mã lịch LH-@item.Id.ToString("D5"). Chỉ có thể đổi lịch trước giờ khám ít nhất 4 giờ.</p></div></div>
+    <form asp-action="UpdateAppointment" method="post" class="booking-layout">
+        <input type="hidden" name="Id" value="@item.Id" />
+        <div class="portal-card booking-form">
+            <div class="form-step"><span>1</span><div><h2>Bác sĩ và thời gian mới</h2><p>Hệ thống sẽ kiểm tra trùng lịch trước khi cập nhật.</p></div></div>
+            <div class="field-grid">
+                <label><span>Bác sĩ</span><select name="DoctorId" class="form-select" required>@foreach(var doctor in Model.Doctors){<option value="@doctor.Id" selected="@(doctor.Id == item.DoctorId)">@doctor.FullName — @doctor.Specialty</option>}</select></label>
+                <label><span>Ngày khám</span><input name="AppointmentDate" type="date" min="@DateTime.Today.ToString("yyyy-MM-dd")" value="@item.AppointmentTime.ToString("yyyy-MM-dd")" class="form-control" required /></label>
+                <label><span>Giờ khám</span><select name="AppointmentTime" class="form-select">@foreach(var slot in new[]{"08:00","08:30","09:00","09:30","14:00","14:30","15:00","15:30"}){<option selected="@(slot == item.AppointmentTime.ToString("HH:mm"))">@slot</option>}</select></label>
+                <label class="span-2"><span>Triệu chứng / lý do khám</span><textarea name="Symptoms" class="form-control" rows="5" required>@item.Reason</textarea></label>
+            </div>
+        </div>
+        <aside class="portal-card booking-summary"><span class="portal-kicker">Xác nhận thay đổi</span><h2>Lịch hiện tại</h2><div class="price-row"><span>Thời gian</span><strong>@item.AppointmentTime.ToString("dd/MM HH:mm")</strong></div><div class="price-row"><span>Bác sĩ</span><strong>@item.Doctor?.FullName</strong></div><button class="btn btn-primary btn-lg w-100">Lưu lịch mới</button></aside>
+    </form>
+}
+else if (Model.Page == "AppointmentDetail")
+{
+    var item = Model.Appointment;
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Appointments">← Quay lại danh sách</a><h1>Chi tiết lịch khám</h1><p>Mã lịch: LH-@(item?.Id.ToString("D5") ?? "00000")</p></div><span class="status-pill large">@(item?.Status ?? "Đang cập nhật")</span></div>
+    <div class="detail-grid">
+        <div class="portal-card detail-main">
+            <div class="appointment-date-banner"><div><strong>@(item?.AppointmentTime.ToString("dd") ?? "--")</strong><span>Tháng @(item?.AppointmentTime.Month ?? 0)</span></div><div><span>Thời gian khám</span><h2>@(item?.AppointmentTime.ToString("dddd, dd/MM/yyyy") ?? "Chưa có")</h2><strong>@(item?.AppointmentTime.ToString("HH:mm") ?? "--:--")</strong></div></div>
+            <div class="info-section"><h2>Thông tin bác sĩ</h2><div class="doctor-inline"><div class="doctor-avatar">BS</div><div><h3>@item?.Doctor?.FullName</h3><p>@item?.Doctor?.Specialty · Phòng khám chuyên khoa</p></div></div></div>
+            <div class="info-section"><h2>Thông tin bệnh nhân</h2><div class="info-grid"><div><span>Họ và tên</span><strong>@Model.Patient.FullName</strong></div><div><span>Số điện thoại</span><strong>@Model.Patient.Phone</strong></div><div><span>Ngày sinh</span><strong>@Model.Patient.DateOfBirth.ToString("dd/MM/yyyy")</strong></div><div><span>Giới tính</span><strong>@Model.Patient.Gender</strong></div></div></div>
+            <div class="info-section"><h2>Triệu chứng / lý do khám</h2><p class="symptom-box">@(item?.Reason ?? "Chưa có thông tin")</p></div>
+        </div>
+        <aside class="portal-card timeline-card"><h2>Trạng thái lịch hẹn</h2><div class="status-timeline"><div class="done"><span></span><strong>Đã đặt lịch</strong><small>Thông tin đã được ghi nhận</small></div><div class="@(item?.Status == "Đã xác nhận" || item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Phòng khám xác nhận</strong><small>Nhân viên kiểm tra lịch bác sĩ</small></div><div class="@(item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Hoàn tất khám</strong><small>Kết quả được cập nhật vào hồ sơ</small></div></div>@if(item is not null && item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a class="btn btn-outline-primary w-100 mb-2" asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch khám</a>}@if(item?.Status != "Hoàn tất" && item?.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post"><input type="hidden" name="id" value="@item?.Id"/><button class="btn btn-outline-danger w-100">Hủy lịch khám</button></form>}</aside>
+    </div>
+}
+else if (Model.Page == "Results")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Hồ sơ sức khỏe</span><h1>Kết quả khám bệnh</h1><p>Xem chẩn đoán, kết luận và khuyến nghị từ bác sĩ.</p></div><a class="btn btn-outline-primary" asp-action="DownloadMedicalReport">Tải hồ sơ</a></div>
+    @if (Model.MedicalRecords.Any())
+    {
+        @foreach (var record in Model.MedicalRecords)
+        {
+            <article class="portal-card result-card">
+                <div class="result-head"><div><span class="record-date">@record.VisitDate.ToString("dd/MM/yyyy")</span><h2>@record.Doctor?.FullName</h2><p>@record.Doctor?.Specialty</p></div><span class="verified-badge">✓ Đã có kết quả</span></div>
+                <div class="result-grid"><div><span>Triệu chứng</span><p>@record.Symptoms</p></div><div><span>Chẩn đoán</span><p><strong>@record.Diagnosis</strong></p></div><div class="span-2"><span>Kết luận & khuyến nghị điều trị</span><p>@record.TreatmentPlan</p></div></div>
+                <div class="attachment-row"><div><span class="file-icon">HS</span><div><strong>Kết quả khám ngày @(record.VisitDate.ToString("dd-MM-yyyy"))</strong><small>Hồ sơ bệnh án điện tử</small></div></div><div class="row-actions"><a asp-action="ResultDetail" asp-route-id="@record.Id">Xem chi tiết</a><a class="btn btn-sm btn-outline-primary" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải xuống</a></div></div>
+            </article>
+        }
+    }
+    else
+    {
+        <div class="portal-card portal-empty"><strong>Chưa có kết quả khám</strong><span>Kết quả sẽ xuất hiện sau khi bác sĩ hoàn tất buổi khám.</span><a asp-action="Book" class="btn btn-primary">Đặt lịch khám</a></div>
+    }
+}
+else if (Model.Page == "ResultDetail")
+{
+    var record = Model.MedicalRecord!;
+    var prescription = Model.Prescriptions.FirstOrDefault(x => x.DoctorId == record.DoctorId && x.CreatedAt.Date == record.VisitDate.Date)
+        ?? Model.Prescriptions.FirstOrDefault(x => x.DoctorId == record.DoctorId);
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Results">← Quay lại kết quả</a><span class="portal-kicker">Bệnh án điện tử</span><h1>Chi tiết kết quả khám</h1><p>Hồ sơ KQ-@record.Id.ToString("D5") · @record.VisitDate.ToString("dd/MM/yyyy HH:mm")</p></div><a class="btn btn-outline-primary" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải hồ sơ</a></div>
+    <div class="detail-grid">
+        <div class="portal-card detail-main">
+            <div class="info-section"><h2>Thông tin lần khám</h2><div class="info-grid"><div><span>Bệnh nhân</span><strong>@Model.Patient.FullName</strong></div><div><span>Bác sĩ khám</span><strong>@record.Doctor?.FullName</strong></div><div><span>Chuyên khoa</span><strong>@record.Doctor?.Specialty</strong></div><div><span>Ngày khám</span><strong>@record.VisitDate.ToString("dd/MM/yyyy HH:mm")</strong></div></div></div>
+            <div class="result-detail-section"><span>Triệu chứng</span><p>@record.Symptoms</p></div>
+            <div class="result-detail-section accent"><span>Chẩn đoán</span><h2>@record.Diagnosis</h2></div>
+            <div class="result-detail-section"><span>Kết luận và khuyến nghị điều trị</span><p>@record.TreatmentPlan</p></div>
+        </div>
+        <aside class="portal-card timeline-card"><h2>Tài liệu liên quan</h2><a class="btn btn-outline-primary w-100" asp-action="DownloadMedicalReport" asp-route-id="@record.Id">Tải kết quả khám</a>@if(prescription is not null){<a class="btn btn-primary w-100 mt-2" asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải đơn thuốc PDF</a>}else{<p class="text-muted mt-3">Lần khám này chưa có đơn thuốc.</p>}</aside>
+    </div>
+}
+else if (Model.Page == "Prescriptions")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Điều trị</span><h1>Đơn thuốc của tôi</h1><p>Theo dõi thuốc, liều dùng và hướng dẫn của bác sĩ.</p></div><button type="button" class="btn btn-outline-primary" data-print-page>In đơn thuốc</button></div>
+    @foreach (var prescription in Model.Prescriptions)
+    {
+        var details = Model.PrescriptionDetails.Where(x => x.PrescriptionId == prescription.Id).ToList();
+        <article class="portal-card prescription-card">
+            <div class="prescription-head"><div><span>ĐƠN THUỐC #DT-@prescription.Id.ToString("D5")</span><h2>@prescription.Diagnosis</h2><p>@prescription.Doctor?.FullName · @prescription.CreatedAt.ToString("dd/MM/yyyy")</p></div><div class="prescription-actions"><span class="status-pill">@(details.Any() ? "Đang sử dụng" : "Chờ kê thuốc")</span>@if(details.Any()){<a class="btn btn-sm btn-outline-primary" asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải PDF</a>}</div></div>
+            <div class="table-responsive"><table class="table portal-table"><thead><tr><th>Thuốc</th><th>Liều dùng</th><th>Số lần uống</th><th>Thời gian</th><th>Số lượng</th></tr></thead><tbody>
+            @if(details.Any()){foreach(var detail in details){<tr><td><strong>@detail.Medicine?.Name</strong></td><td>@detail.Dosage</td><td>@detail.Route</td><td>@detail.UsageInstruction</td><td>@detail.Quantity @detail.Medicine?.Unit</td></tr>}}
+            else{<tr><td colspan="5"><div class="prescription-empty"><strong>Chưa có thuốc trong đơn</strong><span>Bác sĩ chưa chọn thuốc, liều dùng và thời gian sử dụng.</span></div></td></tr>}
+            </tbody></table></div>
+            <div class="doctor-note"><span>Ghi chú của bác sĩ</span><p>@prescription.Instructions</p></div>
+        </article>
+    }
+    @if(!Model.Prescriptions.Any()){<div class="portal-card portal-empty"><strong>Chưa có đơn thuốc</strong><span>Đơn thuốc sẽ được cập nhật sau khi bác sĩ kê toa.</span></div>}
+}
+else if (Model.Page == "History")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Hành trình sức khỏe</span><h1>Lịch sử khám bệnh</h1><p>Tra cứu các lần khám, bệnh án và đơn thuốc trước đây.</p></div></div>
+    <div class="portal-filter history-filter" data-history-filter><input type="date" class="form-control" data-history-from/><input type="date" class="form-control" data-history-to/><input class="form-control" data-history-search placeholder="Tìm chẩn đoán hoặc bác sĩ..."/><button type="button" class="btn btn-primary" data-history-submit>Tìm kiếm</button></div>
+    <div class="history-timeline">
+        @foreach(var record in Model.MedicalRecords)
+        {
+            var prescription = Model.Prescriptions.FirstOrDefault(x => x.PatientId == record.PatientId && x.DoctorId == record.DoctorId);
+            <article class="portal-card history-item" data-history-row data-date="@record.VisitDate.ToString("yyyy-MM-dd")"><div class="history-date"><strong>@record.VisitDate.ToString("dd")</strong><span>@record.VisitDate.ToString("MM/yyyy")</span></div><div class="history-body"><span class="status-pill">Đã hoàn tất</span><h2>@record.Diagnosis</h2><p>@record.Doctor?.FullName · @record.Doctor?.Specialty</p><div class="history-summary"><span>Triệu chứng: @record.Symptoms</span><span>Điều trị: @record.TreatmentPlan</span></div><div class="row-actions"><a asp-action="ResultDetail" asp-route-id="@record.Id">Xem chi tiết bệnh án</a>@if(prescription is not null){<a asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải đơn thuốc PDF</a>}</div></div></article>
+        }
+        @if(!Model.MedicalRecords.Any()){<div class="portal-card portal-empty"><strong>Chưa có lịch sử khám</strong><span>Các lần khám hoàn tất sẽ được lưu tại đây.</span></div>}
+    </div>
+}
+else if (Model.Page == "Payments")
+{
+    var invoice = Model.SelectedInvoice;
+    var paymentStatus = invoice?.PaymentStatus == "Paid" ? "Đã thanh toán"
+        : invoice?.PaymentStatus == "CashPending" ? "Thanh toán tại quầy"
+        : invoice?.PaymentStatus == "Cancelled" ? "Đã hủy"
+        : "Chờ thanh toán";
+    <div class="portal-page-head"><div><span class="portal-kicker">Hóa đơn & thanh toán</span><h1>Thanh toán</h1><p>Mỗi lịch khám có một hóa đơn riêng để bạn dễ theo dõi.</p></div>@if(invoice is not null){<span class="status-pill warning">@paymentStatus</span>}</div>
+    <div class="invoice-selector">
+        @foreach (var item in Model.Invoices)
+        {
+            <a class="invoice-selector-item @(invoice?.Id == item.Id ? "active" : "")" asp-action="Payments" asp-route-invoiceId="@item.Id">
+                <div><strong>@item.InvoiceCode</strong><span>@(item.Appointment is null ? "Hóa đơn khác" : $"Lịch {item.Appointment.AppointmentTime:dd/MM/yyyy HH:mm}")</span></div>
+                <div><strong>@item.TotalAmount.ToString("N0") đ</strong><span>@(item.PaymentStatus == "Paid" ? "Đã thanh toán" : item.PaymentStatus == "CashPending" ? "Thanh toán tại quầy" : "Chờ thanh toán")</span></div>
+            </a>
+        }
+    </div>
+    @if (invoice is not null)
+    {
+        <div class="payment-layout">
+            <div class="portal-card invoice-card"><div class="card-heading"><div><h2>Chi tiết chi phí</h2><p>Hóa đơn #@invoice.InvoiceCode</p></div></div>@if(invoice.Appointment is not null){<div class="invoice-appointment"><span>Lịch khám</span><strong>@invoice.Appointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</strong><small>@invoice.Appointment.Reason</small></div>}<div class="invoice-lines"><div><span>Chi phí khám</span><strong>@invoice.ExaminationFee.ToString("N0") đ</strong></div><div><span>Chi phí thuốc</span><strong>@invoice.MedicineFee.ToString("N0") đ</strong></div><div><span>Phí dịch vụ</span><strong>@invoice.ServiceFee.ToString("N0") đ</strong></div>@if(invoice.Discount > 0){<div><span>Giảm giá</span><strong>-@invoice.Discount.ToString("N0") đ</strong></div>}</div><div class="invoice-total"><span>Tổng thanh toán</span><strong>@invoice.TotalAmount.ToString("N0") đ</strong></div></div>
+            <form asp-action="PayInvoice" method="post" class="portal-card payment-methods" data-payment-form
+                  data-invoice-status="@invoice.PaymentStatus" data-amount="@invoice.TotalAmount.ToString("N0")">
+                <input type="hidden" name="invoiceId" value="@invoice.Id"/>
+                <div class="card-heading"><div><h2>Phương thức thanh toán</h2><p>Chọn chuyển khoản QR hoặc thanh toán tiền mặt tại quầy.</p></div></div>
+                <label class="payment-option">
+                    <input type="radio" name="method" value="BankQR" checked/>
+                    <span class="payment-logo bank-qr">QR</span>
+                    <div><strong>Chuyển khoản VietQR</strong><small>Quét mã bằng ứng dụng ngân hàng hoặc MoMo</small></div>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="method" value="Cash"/>
+                    <span class="payment-logo cash">₫</span>
+                    <div><strong>Tiền mặt tại quầy</strong><small>Thanh toán khi đến phòng khám</small></div>
+                </label>
+
+                <div class="payment-detail active" data-payment-detail="BankQR">
+                    <div class="qr-payment-card">
+                        <span class="qr-badge">VIETQR · NAPAS 247</span>
+                        <img src="https://img.vietqr.io/image/VCB-1033441701-compact2.png?amount=@decimal.ToInt64(invoice.TotalAmount)&amp;addInfo=@Uri.EscapeDataString(invoice.InvoiceCode)&amp;accountName=NGUYEN%20ANH%20VU"
+                             alt="Mã QR thanh toán hóa đơn @invoice.InvoiceCode"/>
+                        <div class="qr-bank-info">
+                            <span>Vietcombank · 1033441701</span>
+                            <strong>NGUYEN ANH VU</strong>
+                        </div>
+                        <div class="qr-transfer-info">
+                            <div><span>Số tiền</span><strong>@invoice.TotalAmount.ToString("N0") đ</strong></div>
+                            <div><span>Nội dung</span><strong>@invoice.InvoiceCode</strong></div>
+                        </div>
+                        <small>Quét mã, kiểm tra đúng số tiền và nội dung trước khi chuyển khoản.</small>
+                    </div>
+                </div>
+
+                <div class="payment-detail" data-payment-detail="Cash" hidden>
+                    <div class="cash-payment-card">
+                        <span class="payment-logo cash">₫</span>
+                        <div><strong>Thanh toán tại quầy lễ tân</strong><p>Vui lòng cung cấp mã <b>@invoice.InvoiceCode</b> và thanh toán <b>@invoice.TotalAmount.ToString("N0") đ</b> khi đến khám.</p></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg w-100" data-payment-submit
+                        disabled="@(invoice.PaymentStatus == "Paid" || invoice.PaymentStatus == "Cancelled")">
+                    @(invoice.PaymentStatus == "Paid" ? "Hóa đơn đã thanh toán"
+                        : invoice.PaymentStatus == "CashPending" ? "Đã đăng ký thanh toán tại quầy"
+                        : invoice.PaymentStatus == "Cancelled" ? "Hóa đơn đã hủy"
+                        : $"Tôi đã chuyển khoản · {invoice.TotalAmount:N0} đ")
+                </button>
+                <p class="secure-note">Thanh toán QR chỉ được ghi nhận sau khi bạn xác nhận đã chuyển khoản.</p>
+            </form>
+        </div>
+    }
+    else
+    {
+        <div class="portal-card portal-empty"><strong>Chưa có hóa đơn</strong><span>Hóa đơn sẽ được tạo ngay khi bạn đặt lịch khám.</span><a asp-action="Book" class="btn btn-primary">Đặt lịch khám</a></div>
+    }
+}
+else if (Model.Page == "Notifications")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Trung tâm cập nhật</span><h1>Thông báo</h1><p>Không bỏ lỡ lịch khám, kết quả và thông tin quan trọng.</p></div><form asp-action="MarkAllNotificationsRead" method="post"><button class="btn btn-outline-primary">Đánh dấu tất cả đã đọc</button></form></div>
+    <div class="notification-layout">
+        <div><div class="filter-tabs notification-tabs" data-notification-tabs><button type="button" class="active" data-category="all">Tất cả</button><button type="button" data-category="appointment">Lịch khám</button><button type="button" data-category="result">Kết quả khám</button><button type="button" data-category="payment">Thanh toán</button><button type="button" data-category="clinic">Phòng khám</button></div>
+            <div class="notification-list">
+                @foreach (var notification in Model.Notifications)
+                {
+                    var category = notification.Title.Contains("lịch", StringComparison.OrdinalIgnoreCase) ? "appointment" : notification.Title.Contains("Kết quả", StringComparison.OrdinalIgnoreCase) ? "result" : notification.Title.Contains("thanh toán", StringComparison.OrdinalIgnoreCase) ? "payment" : "clinic";
+                    var icon = category == "appointment" ? "LH" : category == "result" ? "KQ" : category == "payment" ? "TT" : "AT";
+                    <article class="portal-card notification-item @(!notification.IsRead ? "unread" : "")" data-notification-row data-category="@category"><span class="notification-icon @category">@icon</span><div><div class="notification-title"><h3>@notification.Title</h3><small>@notification.CreatedAt.ToString("dd/MM HH:mm")</small></div><p>@notification.Message</p>@if(category == "appointment"){<a asp-action="Appointments">Xem lịch khám</a>}else if(category == "result"){<a asp-action="Results">Xem kết quả</a>}else if(category == "payment"){<a asp-action="Payments">Thanh toán ngay</a>}</div></article>
+                }
+            </div>
+        </div>
+        <aside class="portal-card preference-card" data-notification-preferences><h2>Cài đặt thông báo</h2><p>Tùy chọn được lưu trên trình duyệt này.</p><label><span>Nhắc lịch khám</span><input type="checkbox" data-pref="appointment" checked/></label><label><span>Kết quả khám mới</span><input type="checkbox" data-pref="result" checked/></label><label><span>Thanh toán</span><input type="checkbox" data-pref="payment" checked/></label><label><span>Tin từ phòng khám</span><input type="checkbox" data-pref="clinic"/></label><small class="preference-saved" hidden>Đã lưu tùy chọn</small></aside>
+    </div>
+}
+else if (Model.Page == "Chat")
+{
+    <div class="portal-page-head"><div><span class="portal-kicker">Hỗ trợ trực tuyến</span><h1>Chat với phòng khám</h1><p>Đội ngũ An Tâm sẵn sàng hỗ trợ bạn trong giờ làm việc.</p></div></div>
+    <div class="chat-shell portal-card">
+        <aside class="conversation-list"><div class="conversation-search"><input class="form-control" value="Phòng khám An Tâm" readonly/></div><div class="conversation active"><span class="chat-avatar">AT</span><div><strong>Nhóm hỗ trợ An Tâm</strong><p>Admin và nhân viên phòng khám</p></div><small>Trực tuyến</small></div></aside>
+        <section class="chat-panel"><header class="chat-header"><div class="chat-avatar">AT</div><div><h2>Phòng Khám An Tâm</h2><span><i></i> Đang trực tuyến · Phản hồi trong vài phút</span></div></header><div class="chat-messages" data-chat-messages><div class="day-divider">Hôm nay</div><div class="message incoming"><p>Xin chào @Model.Patient.FullName, An Tâm có thể hỗ trợ gì cho bạn hôm nay?</p><small>Hỗ trợ tự động</small></div>@foreach(var chat in Model.ChatMessages){var parts = chat.Description.Split('\n', 2);<div class="message @(chat.Action == "AdminReply" ? "incoming" : "outgoing")">@if(!string.IsNullOrWhiteSpace(parts[0]) && !parts[0].StartsWith("/uploads/")){<p>@parts[0]</p>}@if(parts.Length > 1 && parts[1].StartsWith("/uploads/")){<img class="chat-image" src="@parts[1]" alt="Ảnh đã gửi"/>}else if(parts[0].StartsWith("/uploads/")){<img class="chat-image" src="@parts[0]" alt="Ảnh đã gửi"/>}<small>@chat.CreatedAt.ToString("HH:mm")</small></div>}</div><form asp-action="SendChatMessage" method="post" enctype="multipart/form-data" class="chat-composer"><label class="chat-upload" title="Gửi hình ảnh">＋<input type="file" name="image" accept="image/png,image/jpeg,image/webp" hidden/></label><input name="message" placeholder="Nhập tin nhắn..."/><button class="send-button">Gửi</button></form></section>
+    </div>
+}
+
+<footer class="portal-footer"><div><strong>Phòng Khám An Tâm</strong><span>Chăm sóc tận tâm, đồng hành dài lâu.</span></div><div><span>Hotline: 1900 6868</span><span>support@antamclinic.vn</span><span>© 2026 An Tâm Clinic</span></div></footer>

@@ -5,6 +5,8 @@ using PhongKham.Data;
 using PhongKham.Models;
 using PhongKham.Services;
 using PhongKham.ViewModels;
+using System.Globalization;
+using System.Text;
 
 namespace PhongKham.Controllers;
 
@@ -43,11 +45,52 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin,BacSi")]
-    public async Task<IActionResult> Patients()
+    public async Task<IActionResult> Patients(string search = "", string gender = "")
     {
         if (!User.IsInRole("BacSi"))
         {
-            return View(await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients));
+            search = search.Trim();
+            gender = gender.Trim();
+            ViewBag.Search = search;
+            ViewBag.Gender = gender;
+
+            return View(await TryLoad(
+                async () =>
+                {
+                    var query = db.Patients.AsQueryable();
+                    if (!string.IsNullOrWhiteSpace(search))
+                    {
+                        query = query.Where(x => x.FullName.Contains(search)
+                            || x.Phone.Contains(search)
+                            || x.InsuranceCode.Contains(search)
+                            || x.Address.Contains(search));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(gender))
+                    {
+                        query = query.Where(x => x.Gender == gender);
+                    }
+
+                    return await query.OrderBy(x => x.FullName).ToListAsync();
+                },
+                () =>
+                {
+                    var patients = DemoPatients().AsEnumerable();
+                    if (!string.IsNullOrWhiteSpace(search))
+                    {
+                        patients = patients.Where(x => x.FullName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                            || x.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)
+                            || x.InsuranceCode.Contains(search, StringComparison.OrdinalIgnoreCase)
+                            || x.Address.Contains(search, StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(gender))
+                    {
+                        patients = patients.Where(x => x.Gender == gender);
+                    }
+
+                    return patients.OrderBy(x => x.FullName).ToList();
+                }));
         }
 
         var doctor = await TryGetCurrentDoctorAsync();
@@ -228,7 +271,28 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
             await TryExecuteAsync(async () =>
             {
+                if (await HasDoctorConflictAsync(appointment.DoctorId, appointment.AppointmentTime))
+                {
+                    TempData["DatabaseWarning"] = "BÃ¡c sÄ© Ä‘Ã£ cÃ³ lá»‹ch trong khung giá» nÃ y. Vui lÃ²ng chá»n giá» khÃ¡c.";
+                    return;
+                }
+
                 db.Appointments.Add(appointment);
+                await db.SaveChangesAsync();
+
+                db.Invoices.Add(new Invoice
+                {
+                    InvoiceCode = $"HD-{DateTime.Now:yyyyMMdd}-{appointment.Id:D5}",
+                    PatientId = appointment.PatientId,
+                    AppointmentId = appointment.Id,
+                    ExaminationFee = appointment.Fee,
+                    MedicineFee = 0,
+                    ServiceFee = 0,
+                    Discount = 0,
+                    TotalAmount = appointment.Fee,
+                    PaymentStatus = appointment.Status is "Há»§y" or "ÄÃ£ há»§y" ? "Cancelled" : "Unpaid",
+                    CreatedBy = User.Identity?.Name ?? ""
+                });
                 await db.SaveChangesAsync();
             });
         }
@@ -285,7 +349,60 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin,DuocSi")]
-    public async Task<IActionResult> Medicines() => View(await TryLoad(() => db.Medicines.OrderBy(x => x.Name).ToListAsync(), DemoMedicines));
+    public async Task<IActionResult> Medicines(string search = "", string stock = "")
+    {
+        search = search.Trim();
+        stock = stock.Trim();
+        ViewBag.Search = search;
+        ViewBag.Stock = stock;
+        ViewBag.LowStockCount = await TryLoadValue(
+            () => db.Medicines.CountAsync(x => x.QuantityInStock < 30),
+            () => DemoMedicines().Count(x => x.QuantityInStock < 30));
+        ViewBag.ExpiringCount = await TryLoadValue(
+            () => db.Medicines.CountAsync(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60)),
+            () => DemoMedicines().Count(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60)));
+        ViewBag.InventoryTransactions = await TryLoad(
+            () => db.InventoryTransactions.Include(x => x.Medicine).OrderByDescending(x => x.CreatedAt).Take(15).ToListAsync(),
+            () => new List<InventoryTransaction>());
+
+        return View(await TryLoad(
+            async () =>
+            {
+                var query = db.Medicines.AsQueryable();
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    query = query.Where(x => x.Name.Contains(search));
+                }
+
+                query = stock switch
+                {
+                    "low" => query.Where(x => x.QuantityInStock < 30),
+                    "expired" => query.Where(x => x.ExpiryDate < DateTime.Today),
+                    "expiring" => query.Where(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60)),
+                    _ => query
+                };
+
+                return await query.OrderBy(x => x.Name).ToListAsync();
+            },
+            () =>
+            {
+                var medicines = DemoMedicines().AsEnumerable();
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    medicines = medicines.Where(x => x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+                }
+
+                medicines = stock switch
+                {
+                    "low" => medicines.Where(x => x.QuantityInStock < 30),
+                    "expired" => medicines.Where(x => x.ExpiryDate < DateTime.Today),
+                    "expiring" => medicines.Where(x => x.ExpiryDate >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddDays(60)),
+                    _ => medicines
+                };
+
+                return medicines.OrderBy(x => x.Name).ToList();
+            }));
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin,DuocSi")]
@@ -299,6 +416,35 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                 await db.SaveChangesAsync();
             });
         }
+
+        return RedirectToAction(nameof(Medicines));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> AdjustMedicineStock(int id, int quantity, string reason)
+    {
+        await TryExecuteAsync(async () =>
+        {
+            var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == id);
+            if (medicine is null || quantity == 0 || medicine.QuantityInStock + quantity < 0)
+            {
+                TempData["DatabaseWarning"] = "Sá»‘ lÆ°á»£ng Ä‘iá»u chá»‰nh khÃ´ng há»£p lá»‡ hoáº·c vÆ°á»£t quÃ¡ tá»“n kho.";
+                return;
+            }
+
+            medicine.QuantityInStock += quantity;
+            db.InventoryTransactions.Add(new InventoryTransaction
+            {
+                MedicineId = medicine.Id,
+                TransactionType = quantity > 0 ? "Import" : "Export",
+                Quantity = Math.Abs(quantity),
+                ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Äiá»u chá»‰nh thá»§ cÃ´ng" : reason.Trim(),
+                CreatedBy = User.Identity?.Name ?? ""
+            });
+            await db.SaveChangesAsync();
+            TempData["SuccessMessage"] = "ÄÃ£ cáº­p nháº­t tá»“n kho.";
+        });
 
         return RedirectToAction(nameof(Medicines));
     }
@@ -375,6 +521,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             }
 
             Prescription entity;
+            var previousQuantities = new Dictionary<int, int>();
             if (form.Id.HasValue)
             {
                 entity = await db.Prescriptions
@@ -393,6 +540,9 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                     return RedirectToAction(nameof(Prescriptions));
                 }
 
+                previousQuantities = entity.Details
+                    .GroupBy(x => x.MedicineId)
+                    .ToDictionary(x => x.Key, x => x.Sum(d => d.Quantity));
                 db.PrescriptionDetails.RemoveRange(entity.Details);
                 entity.Details.Clear();
             }
@@ -413,6 +563,65 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             entity.TotalAmount = validation.TotalAmount;
             entity.Details.Clear();
             entity.Details.AddRange(validation.Details);
+
+            var newQuantities = entity.Details
+                .GroupBy(x => x.MedicineId)
+                .ToDictionary(x => x.Key, x => x.Sum(d => d.Quantity));
+            var stockMedicineIds = previousQuantities.Keys.Concat(newQuantities.Keys).Distinct().ToList();
+            var stockMedicines = await db.Medicines
+                .Where(x => stockMedicineIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id);
+
+            foreach (var medicineId in stockMedicineIds)
+            {
+                var delta = newQuantities.GetValueOrDefault(medicineId) - previousQuantities.GetValueOrDefault(medicineId);
+                if (delta == 0 || !stockMedicines.TryGetValue(medicineId, out var medicine))
+                {
+                    continue;
+                }
+
+                medicine.QuantityInStock -= delta;
+                db.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    MedicineId = medicineId,
+                    TransactionType = delta > 0 ? "Prescription" : "PrescriptionReturn",
+                    Quantity = Math.Abs(delta),
+                    ReferenceCode = entity.Id == 0 ? "DT-NEW" : $"DT-{entity.Id:D5}",
+                    CreatedBy = User.Identity?.Name ?? ""
+                });
+            }
+
+            await db.SaveChangesAsync();
+
+            foreach (var transaction in db.InventoryTransactions.Local.Where(x => x.ReferenceCode == "DT-NEW"))
+            {
+                transaction.ReferenceCode = $"DT-{entity.Id:D5}";
+            }
+
+            if (entity.AppointmentId.HasValue)
+            {
+                var invoice = await db.Invoices.FirstOrDefaultAsync(x => x.AppointmentId == entity.AppointmentId.Value);
+                if (invoice is not null && invoice.PaymentStatus != "Paid")
+                {
+                    invoice.MedicineFee = entity.TotalAmount;
+                    invoice.TotalAmount = invoice.ExaminationFee + invoice.MedicineFee + invoice.ServiceFee - invoice.Discount;
+                    invoice.UpdatedAt = DateTime.Now;
+                }
+            }
+
+            var patientUser = await db.Users.FirstOrDefaultAsync(x =>
+                (!string.IsNullOrWhiteSpace(patient.Phone) && x.PhoneNumber == patient.Phone)
+                || x.FullName == patient.FullName);
+            if (patientUser is not null && !form.Id.HasValue)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = patientUser.Id,
+                    Title = "Don thuoc moi",
+                    Message = $"Don thuoc DT-{entity.Id:D5} da duoc ke va san sang de xem.",
+                    CreatedBy = User.Identity?.Name ?? ""
+                });
+            }
 
             await db.SaveChangesAsync();
             TempData["SuccessMessage"] = form.Id.HasValue ? "Đã cập nhật đơn thuốc." : "Đã lưu đơn thuốc mới.";
@@ -612,23 +821,48 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Revenue()
+    public async Task<IActionResult> Revenue(DateTime? from, DateTime? to)
     {
-        var appointments = await TryLoad(
-            () => db.Appointments.Include(x => x.Patient).OrderByDescending(x => x.AppointmentTime).Take(10).ToListAsync(),
-            DemoAppointments);
-        var prescriptions = await TryLoad(
-            () => db.Prescriptions.Include(x => x.Patient).OrderByDescending(x => x.CreatedAt).Take(10).ToListAsync(),
-            DemoPrescriptions);
-
-        var appointmentRevenue = appointments.Sum(x => x.Fee);
-        var prescriptionRevenue = prescriptions.Sum(x => x.TotalAmount);
+        var fromDate = (from ?? DateTime.Today.AddDays(-30)).Date;
+        var toDate = (to ?? DateTime.Today).Date.AddDays(1);
+        var invoices = await TryLoad(
+            () => db.Invoices.Include(x => x.Patient).Include(x => x.Payments)
+                .Where(x => x.PaymentStatus == "Paid" && x.Payments.Any(p => p.PaidAt >= fromDate && p.PaidAt < toDate))
+                .OrderByDescending(x => x.Payments.Max(p => p.PaidAt))
+                .ToListAsync(),
+            () => new List<Invoice>());
+        var appointmentRevenue = invoices.Sum(x => x.ExaminationFee + x.ServiceFee - x.Discount);
+        var prescriptionRevenue = invoices.Sum(x => x.MedicineFee);
         ViewBag.AppointmentRevenue = appointmentRevenue;
         ViewBag.PrescriptionRevenue = prescriptionRevenue;
         ViewBag.TotalRevenue = appointmentRevenue + prescriptionRevenue;
-        ViewBag.Appointments = appointments;
-        ViewBag.Prescriptions = prescriptions;
+        ViewBag.Invoices = invoices;
+        ViewBag.From = fromDate;
+        ViewBag.To = toDate.AddDays(-1);
         return View();
+    }
+
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> ExportRevenue(DateTime? from, DateTime? to)
+    {
+        var fromDate = (from ?? DateTime.Today.AddDays(-30)).Date;
+        var toDate = (to ?? DateTime.Today).Date.AddDays(1);
+        var invoices = await db.Invoices.Include(x => x.Patient).Include(x => x.Payments)
+            .Where(x => x.PaymentStatus == "Paid" && x.Payments.Any(p => p.PaidAt >= fromDate && p.PaidAt < toDate))
+            .OrderBy(x => x.Payments.Max(p => p.PaidAt))
+            .ToListAsync();
+        var csv = new StringBuilder("Ma hoa don;Ngay thanh toan;Benh nhan;Phi kham;Phi thuoc;Phi dich vu;Giam gia;Tong tien;Phuong thuc\r\n");
+        foreach (var invoice in invoices)
+        {
+            var payment = invoice.Payments.OrderByDescending(x => x.PaidAt).First();
+            csv.AppendLine(string.Join(";",
+                Csv(invoice.InvoiceCode), Csv(payment.PaidAt.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture)),
+                Csv(invoice.Patient?.FullName ?? ""), Number(invoice.ExaminationFee), Number(invoice.MedicineFee),
+                Number(invoice.ServiceFee), Number(invoice.Discount), Number(invoice.TotalAmount), Csv(payment.Method)));
+        }
+
+        return File(new UTF8Encoding(true).GetBytes(csv.ToString()), "text/csv; charset=utf-8",
+            $"doanh-thu-{fromDate:yyyyMMdd}-{toDate.AddDays(-1):yyyyMMdd}.csv");
     }
 
     [Authorize(Roles = "Admin")]
@@ -649,6 +883,22 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
         return RedirectToAction(nameof(Users));
     }
+
+    private async Task<bool> HasDoctorConflictAsync(int doctorId, DateTime appointmentTime, int? excludeId = null)
+    {
+        var from = appointmentTime.AddMinutes(-29);
+        var to = appointmentTime.AddMinutes(29);
+        return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
+            && x.Id != excludeId
+            && x.Status != "Há»§y"
+            && x.Status != "ÄÃ£ há»§y"
+            && x.AppointmentTime >= from
+            && x.AppointmentTime <= to);
+    }
+
+    private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+
+    private static string Number(decimal value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
     private async Task<ClinicDashboardViewModel> PersonalizeDashboard(ClinicDashboardViewModel model)
     {
@@ -1278,6 +1528,19 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     }
 
     private async Task<List<T>> TryLoad<T>(Func<Task<List<T>>> query, Func<List<T>> fallback)
+    {
+        try
+        {
+            return await query();
+        }
+        catch (Exception ex)
+        {
+            TempData["DatabaseWarning"] = DatabaseWarning(ex);
+            return fallback();
+        }
+    }
+
+    private async Task<T> TryLoadValue<T>(Func<Task<T>> query, Func<T> fallback)
     {
         try
         {

@@ -8,6 +8,18 @@
         <div class="text-muted">Tiếp nhận, tra cứu và cập nhật thông tin hành chính của bệnh nhân.</div>
     </div>
 </div>
+<div class="panel compact-panel">
+    <form asp-action="Patients" method="get" class="admin-filter-bar">
+        <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Tìm họ tên, điện thoại, BHYT hoặc địa chỉ..." />
+        <select name="gender" class="form-select">
+            <option value="">Tất cả giới tính</option>
+            <option value="Nam" selected="@(ViewBag.Gender == "Nam")">Nam</option>
+            <option value="Nữ" selected="@(ViewBag.Gender == "Nữ")">Nữ</option>
+        </select>
+        <button class="btn btn-primary">Tìm kiếm</button>
+        <a asp-action="Patients" class="btn btn-outline-primary">Xóa lọc</a>
+    </form>
+</div>
 <div class="panel">
     <div class="panel-head">
         <div>

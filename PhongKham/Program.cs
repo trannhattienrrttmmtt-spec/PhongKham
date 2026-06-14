@@ -4,9 +4,11 @@ using PhongKham.Data;
 using PhongKham.Models;
 using PhongKham.Repositories;
 using PhongKham.Services;
+using QuestPDF.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var databaseRuntimeState = new DatabaseRuntimeState();
+QuestPDF.Settings.License = LicenseType.Community;
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -15,7 +17,16 @@ builder.Logging.AddDebug();
 builder.Services.AddControllersWithViews();
 builder.Services.AddSingleton(databaseRuntimeState);
 builder.Services.AddDbContext<ClinicDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("ClinicDatabase")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("ClinicDatabase"),
+        sqlOptions =>
+        {
+            sqlOptions.CommandTimeout(60);
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null);
+        }));
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
