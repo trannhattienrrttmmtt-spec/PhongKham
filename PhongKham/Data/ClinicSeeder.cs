@@ -93,6 +93,7 @@ public static class ClinicSeeder
         EnsureMedicineInventoryColumns(db);
         EnsureInventoryLotTable(db);
         await SeedRolesAndUsersAsync(userManager, roleManager);
+        await RemoveReceptionistIdentityAsync(userManager, roleManager);
         await NormalizeIdentityDisplayNamesAsync(userManager);
 
         if (db.Patients.Any())
@@ -350,7 +351,7 @@ public static class ClinicSeeder
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager)
     {
-        var roles = new[] { "Admin", "BacSi", "DuocSi", "BenhNhan", "LeTan" };
+        var roles = new[] { "Admin", "BacSi", "DuocSi", "BenhNhan" };
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -360,10 +361,30 @@ public static class ClinicSeeder
         }
 
         await EnsureUserAsync(userManager, "admin@phongkham.local", "Quản trị hệ thống", "Admin", "Admin");
-        await EnsureUserAsync(userManager, "letan@phongkham.local", "Le tan phong kham", "LeTan", "LeTan");
         await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bác sĩ phòng khám", "BacSi", "BacSi");
         await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Dược sĩ", "DuocSi", "DuocSi");
         await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Bệnh nhân mẫu", "BenhNhan", "BenhNhan");
+    }
+
+    private static async Task RemoveReceptionistIdentityAsync(
+        UserManager<ApplicationUser> userManager,
+        RoleManager<IdentityRole> roleManager)
+    {
+        var emails = new[] { "letan@phongkham.local", "letan1@phongkham.local", "letan2@phongkham.local" };
+        foreach (var email in emails)
+        {
+            var user = await userManager.FindByEmailAsync(email);
+            if (user is not null)
+            {
+                await userManager.DeleteAsync(user);
+            }
+        }
+
+        var role = await roleManager.FindByNameAsync("LeTan");
+        if (role is not null)
+        {
+            await roleManager.DeleteAsync(role);
+        }
     }
 
     private static async Task EnsureUserAsync(

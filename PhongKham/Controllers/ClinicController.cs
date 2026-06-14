@@ -32,11 +32,11 @@ public class ClinicController(
         }
     }
 
-    [Authorize(Roles = "Admin,BacSi,LeTan")]
+    [Authorize(Roles = "Admin,BacSi")]
     public async Task<IActionResult> Patients() => View(await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients));
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AddPatient(Patient patient)
     {
         if (ModelState.IsValid)
@@ -47,7 +47,7 @@ public class ClinicController(
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,LeTan")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdatePatient(Patient patient)
     {
         if (!ModelState.IsValid)
@@ -106,7 +106,7 @@ public class ClinicController(
         return RedirectToAction(nameof(Rooms));
     }
 
-    [Authorize(Roles = "Admin,BacSi,BenhNhan,LeTan")]
+    [Authorize(Roles = "Admin,BacSi,BenhNhan")]
     public async Task<IActionResult> Appointments()
     {
         var patients = await TryLoad(() => db.Patients.OrderBy(x => x.FullName).ToListAsync(), DemoPatients);
@@ -133,7 +133,7 @@ public class ClinicController(
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,BenhNhan,LeTan")]
+    [Authorize(Roles = "Admin,BenhNhan")]
     public async Task<IActionResult> AddAppointment(Appointment appointment)
     {
         if (ModelState.IsValid)
@@ -971,7 +971,6 @@ public class ClinicController(
         "Quan tri" or "Quản trị" or "Admin" => "Admin",
         "Bac si" or "Bác sĩ" or "BacSi" => "BacSi",
         "Duoc si" or "Dược sĩ" or "DuocSi" => "DuocSi",
-        "Le tan" or "Lễ tân" or "LeTan" => "LeTan",
         "Benh nhan" or "Bệnh nhân" or "BenhNhan" => "BenhNhan",
         _ => "BenhNhan"
     };
