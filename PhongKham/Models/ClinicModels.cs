@@ -67,14 +67,20 @@ public class Appointment
 public class Medicine
 {
     public int Id { get; set; }
+    [StringLength(40)]
+    public string Code { get; set; } = "";
     [Required, StringLength(120)]
     public string Name { get; set; } = "";
     [StringLength(40)]
     public string Unit { get; set; } = "Viên";
+    [StringLength(2000)]
+    public string Smiles { get; set; } = "";
     public int QuantityInStock { get; set; }
+    public int MinimumStock { get; set; } = 30;
     public decimal UnitPrice { get; set; }
     [DataType(DataType.Date)]
     public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
+    public bool IsActive { get; set; } = true;
 }
 
 public class Prescription
@@ -92,6 +98,14 @@ public class Prescription
     [StringLength(500)]
     public string Instructions { get; set; } = "";
     public decimal TotalAmount { get; set; }
+    [StringLength(40)]
+    public string DispenseStatus { get; set; } = "Pending";
+    public DateTime? DispensedAt { get; set; }
+    [StringLength(120)]
+    public string DispensedBy { get; set; } = "";
+    [StringLength(240)]
+    public string DispenseNote { get; set; } = "";
+    public string PrescriptionCode => Id > 0 ? $"DT-{CreatedAt:yyyyMMdd}-{Id:000}" : $"DT-{CreatedAt:yyyyMMdd}-MOI";
     public List<PrescriptionDetail> Details { get; set; } = [];
 }
 

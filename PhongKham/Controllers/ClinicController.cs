@@ -449,6 +449,187 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         return RedirectToAction(nameof(Medicines));
     }
 
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> UpdateMedicine(Medicine medicine)
+    {
+        await TryExecuteAsync(async () =>
+        {
+            var existing = await db.Medicines.FindAsync(medicine.Id);
+            if (existing is null)
+            {
+                return;
+            }
+
+            existing.Code = medicine.Code;
+            existing.Name = medicine.Name;
+            existing.Unit = medicine.Unit;
+            existing.Smiles = medicine.Smiles;
+            existing.QuantityInStock = medicine.QuantityInStock;
+            existing.MinimumStock = Math.Max(0, medicine.MinimumStock);
+            existing.UnitPrice = medicine.UnitPrice;
+            existing.ExpiryDate = medicine.ExpiryDate;
+            existing.IsActive = medicine.IsActive;
+            AddAudit("UpdateMedicine", nameof(Medicine), existing.Id.ToString(), $"Update medicine {existing.Name}");
+            await db.SaveChangesAsync();
+        });
+
+        return RedirectToAction(nameof(Medicines));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> ToggleMedicineActive(int id, bool isActive)
+    {
+        await TryExecuteAsync(async () =>
+        {
+            var medicine = await db.Medicines.FindAsync(id);
+            if (medicine is null)
+            {
+                return;
+            }
+
+            medicine.IsActive = isActive;
+            AddAudit(isActive ? "ReactivateMedicine" : "DeactivateMedicine", nameof(Medicine), medicine.Id.ToString(), medicine.Name);
+            await db.SaveChangesAsync();
+        });
+
+        return RedirectToAction(nameof(Medicines));
+    }
+
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> InventoryReceipts()
+    {
+        ViewBag.Medicines = await TryLoad(
+            () => db.Medicines.Where(x => x.IsActive).OrderBy(x => x.Name).ToListAsync(),
+            () => DemoMedicines().Where(x => x.IsActive).OrderBy(x => x.Name).ToList());
+        return View(await TryLoad(
+            () => db.InventoryReceipts.Include(x => x.Details).ThenInclude(x => x.Medicine)
+                .OrderByDescending(x => x.ReceiptDate)
+                .Take(80)
+                .ToListAsync(),
+            () => new List<InventoryReceipt>()));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> AddInventoryReceipt(
+        string receiptCode,
+        int medicineId,
+        int quantity,
+        decimal unitCost,
+        DateTime? expiryDate,
+        DateTime? receiptDate,
+        string batchNumber = "")
+    {
+        if (medicineId <= 0 || quantity <= 0)
+        {
+            TempData["DatabaseWarning"] = "Chon thuoc va so luong nhap lon hon 0.";
+            return RedirectToAction(nameof(InventoryReceipts));
+        }
+
+        await TryExecuteAsync(async () =>
+        {
+            var medicine = await db.Medicines.FindAsync(medicineId);
+            if (medicine is null || !medicine.IsActive)
+            {
+                TempData["DatabaseWarning"] = "Khong tim thay thuoc dang su dung de nhap kho.";
+                return;
+            }
+
+            await using var tx = await db.Database.BeginTransactionAsync();
+            var code = string.IsNullOrWhiteSpace(receiptCode) ? $"PN{DateTime.Now:yyyyMMddHHmmss}" : receiptCode.Trim();
+            var safeCost = Math.Max(0, unitCost);
+            var lineTotal = safeCost * quantity;
+            var lotExpiry = expiryDate ?? medicine.ExpiryDate;
+            var receivedAt = receiptDate ?? DateTime.Now;
+            var receipt = new InventoryReceipt
+            {
+                ReceiptCode = code,
+                ReceiptDate = receivedAt,
+                TotalAmount = lineTotal,
+                CreatedBy = User.Identity?.Name ?? "",
+                Details =
+                [
+                    new()
+                    {
+                        MedicineId = medicine.Id,
+                        Quantity = quantity,
+                        UnitCost = safeCost,
+                        LineTotal = lineTotal
+                    }
+                ]
+            };
+
+            medicine.QuantityInStock += quantity;
+            if (lotExpiry > medicine.ExpiryDate)
+            {
+                medicine.ExpiryDate = lotExpiry;
+            }
+
+            db.InventoryReceipts.Add(receipt);
+            var lotCode = string.IsNullOrWhiteSpace(batchNumber) ? $"{code}-{medicine.Id}" : batchNumber.Trim();
+            var lot = new InventoryLot
+            {
+                MedicineId = medicine.Id,
+                BatchNumber = lotCode,
+                ReceiptCode = code,
+                QuantityReceived = quantity,
+                QuantityRemaining = quantity,
+                UnitCost = safeCost,
+                ExpiryDate = lotExpiry,
+                ReceivedAt = receivedAt,
+                CreatedBy = User.Identity?.Name ?? ""
+            };
+            db.InventoryLots.Add(lot);
+            db.InventoryTransactions.Add(new InventoryTransaction
+            {
+                MedicineId = medicine.Id,
+                InventoryLot = lot,
+                TransactionType = "Import",
+                Quantity = quantity,
+                ReferenceCode = code,
+                CreatedBy = User.Identity?.Name ?? ""
+            });
+            AddAudit("ImportStock", nameof(InventoryReceipt), code, $"Import {quantity} {medicine.Unit} {medicine.Name}");
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        });
+
+        return RedirectToAction(nameof(InventoryReceipts));
+    }
+
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> InventoryTransactions() => View(await TryLoad(
+        () => db.InventoryTransactions.Include(x => x.Medicine).Include(x => x.InventoryLot)
+            .OrderByDescending(x => x.CreatedAt)
+            .Take(150)
+            .ToListAsync(),
+        () => new List<InventoryTransaction>()));
+
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> InventoryLots() => View(await TryLoad(
+        () => db.InventoryLots.Include(x => x.Medicine)
+            .OrderBy(x => x.ExpiryDate)
+            .ThenByDescending(x => x.QuantityRemaining)
+            .Take(150)
+            .ToListAsync(),
+        () => new List<InventoryLot>()));
+
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> ExpiryAlerts()
+    {
+        var horizon = DateTime.Today.AddMonths(6);
+        return View(await TryLoad(
+            () => db.Medicines.Where(x => x.ExpiryDate <= horizon).OrderBy(x => x.ExpiryDate).ToListAsync(),
+            () => DemoMedicines().Where(x => x.ExpiryDate <= horizon).OrderBy(x => x.ExpiryDate).ToList()));
+    }
+
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> AuditLogs() => View(await TryLoad(
+        () => db.AuditLogs.OrderByDescending(x => x.CreatedAt).Take(150).ToListAsync(),
+        () => new List<AuditLog>()));
+
     [Authorize(Roles = "Admin,BacSi,DuocSi")]
     public async Task<IActionResult> Prescriptions(int? appointmentId, int? editId)
         => View(await BuildPrescriptionsPageAsync(appointmentId, editId));
@@ -550,7 +731,8 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             {
                 entity = new Prescription
                 {
-                    CreatedAt = DateTime.Now
+                    CreatedAt = DateTime.Now,
+                    DispenseStatus = "Pending"
                 };
                 db.Prescriptions.Add(entity);
             }
@@ -585,7 +767,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                 {
                     MedicineId = medicineId,
                     TransactionType = delta > 0 ? "Prescription" : "PrescriptionReturn",
-                    Quantity = Math.Abs(delta),
+                    Quantity = delta > 0 ? -Math.Abs(delta) : Math.Abs(delta),
                     ReferenceCode = entity.Id == 0 ? "DT-NEW" : $"DT-{entity.Id:D5}",
                     CreatedBy = User.Identity?.Name ?? ""
                 });
@@ -669,6 +851,154 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         }
 
         return RedirectToAction(nameof(Prescriptions));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> DispensePrescription(int id)
+    {
+        await TryExecuteAsync(async () =>
+        {
+            var prescription = await db.Prescriptions
+                .Include(x => x.Details)
+                .ThenInclude(x => x.Medicine)
+                .FirstOrDefaultAsync(x => x.Id == id);
+            if (prescription is null || prescription.DispenseStatus != "Pending")
+            {
+                TempData["DatabaseWarning"] = "Don thuoc khong ton tai hoac da duoc xu ly.";
+                return;
+            }
+
+            if (!prescription.Details.Any())
+            {
+                TempData["DatabaseWarning"] = "Don thuoc chua co chi tiet thuoc de cap.";
+                return;
+            }
+
+            var expiredMedicines = prescription.Details
+                .Where(x => x.Medicine is null || x.Medicine.ExpiryDate.Date < DateTime.Today || !x.Medicine.IsActive)
+                .Select(x => x.Medicine?.Name ?? "Thuoc")
+                .ToList();
+            if (expiredMedicines.Any())
+            {
+                TempData["DatabaseWarning"] = "Co thuoc het han hoac ngung su dung: " + string.Join(", ", expiredMedicines);
+                return;
+            }
+
+            var lotShortages = new List<string>();
+            foreach (var group in prescription.Details.GroupBy(x => x.MedicineId))
+            {
+                var hasLots = await db.InventoryLots.AnyAsync(x => x.MedicineId == group.Key && x.QuantityRemaining > 0 && !x.IsClosed);
+                if (!hasLots)
+                {
+                    continue;
+                }
+
+                var validLotStock = await db.InventoryLots
+                    .Where(x => x.MedicineId == group.Key
+                        && x.QuantityRemaining > 0
+                        && !x.IsClosed
+                        && x.ExpiryDate.Date >= DateTime.Today)
+                    .SumAsync(x => x.QuantityRemaining);
+                var needed = group.Sum(x => x.Quantity);
+                if (validLotStock < needed)
+                {
+                    lotShortages.Add($"{group.First().Medicine?.Name ?? "Thuoc"} con {validLotStock}, can {needed}");
+                }
+            }
+
+            if (lotShortages.Any())
+            {
+                TempData["DatabaseWarning"] = "Khong du ton theo lo con han: " + string.Join("; ", lotShortages);
+                return;
+            }
+
+            await using var tx = await db.Database.BeginTransactionAsync();
+            foreach (var detail in prescription.Details)
+            {
+                var remaining = detail.Quantity;
+                var lots = await db.InventoryLots
+                    .Where(x => x.MedicineId == detail.MedicineId
+                        && x.QuantityRemaining > 0
+                        && !x.IsClosed
+                        && x.ExpiryDate.Date >= DateTime.Today)
+                    .OrderBy(x => x.ExpiryDate)
+                    .ThenBy(x => x.ReceivedAt)
+                    .ToListAsync();
+
+                foreach (var lot in lots)
+                {
+                    if (remaining <= 0)
+                    {
+                        break;
+                    }
+
+                    var take = Math.Min(remaining, lot.QuantityRemaining);
+                    lot.QuantityRemaining -= take;
+                    lot.IsClosed = lot.QuantityRemaining <= 0;
+                    remaining -= take;
+
+                    db.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MedicineId = detail.MedicineId,
+                        InventoryLotId = lot.Id,
+                        TransactionType = "Dispense",
+                        Quantity = -take,
+                        ReferenceCode = $"{prescription.PrescriptionCode}/{lot.BatchNumber}",
+                        CreatedBy = User.Identity?.Name ?? ""
+                    });
+                }
+
+                if (remaining > 0)
+                {
+                    db.InventoryTransactions.Add(new InventoryTransaction
+                    {
+                        MedicineId = detail.MedicineId,
+                        TransactionType = "Dispense",
+                        Quantity = -remaining,
+                        ReferenceCode = $"{prescription.PrescriptionCode}/NOLOT",
+                        CreatedBy = User.Identity?.Name ?? ""
+                    });
+                }
+            }
+
+            prescription.DispenseStatus = "Dispensed";
+            prescription.DispensedAt = DateTime.Now;
+            prescription.DispensedBy = User.Identity?.Name ?? "";
+            prescription.DispenseNote = "";
+            AddAudit("DispensePrescription", nameof(Prescription), prescription.Id.ToString(), $"Dispense {prescription.PrescriptionCode}");
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+        });
+
+        return RedirectToAction(nameof(Prescriptions));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,DuocSi")]
+    public async Task<IActionResult> RejectPrescription(int id, string note = "")
+    {
+        await UpdateDispenseStatus(id, "Rejected", note);
+        return RedirectToAction(nameof(Prescriptions));
+    }
+
+    private async Task UpdateDispenseStatus(int id, string status, string note)
+    {
+        await TryExecuteAsync(async () =>
+        {
+            var prescription = await db.Prescriptions.FindAsync(id);
+            if (prescription is null)
+            {
+                return;
+            }
+
+            prescription.DispenseStatus = status;
+            prescription.DispensedAt = DateTime.Now;
+            prescription.DispensedBy = User.Identity?.Name ?? "";
+            prescription.DispenseNote = note ?? "";
+            AddAudit("UpdateDispenseStatus", nameof(Prescription), prescription.Id.ToString(), status);
+            await db.SaveChangesAsync();
+        });
     }
 
     [Authorize(Roles = "Admin,BacSi")]
@@ -899,6 +1229,19 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     private static string Number(decimal value) => value.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private void AddAudit(string action, string entityName, string entityId, string description)
+    {
+        db.AuditLogs.Add(new AuditLog
+        {
+            UserId = User.Identity?.Name ?? "",
+            Action = action,
+            EntityName = entityName,
+            EntityId = entityId,
+            Description = description,
+            CreatedAt = DateTime.Now
+        });
+    }
 
     private async Task<ClinicDashboardViewModel> PersonalizeDashboard(ClinicDashboardViewModel model)
     {
@@ -1441,6 +1784,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             {
                 errors.Add("Có thuốc trong đơn không còn tồn tại.");
                 continue;
+            }
+
+            if (!medicine.IsActive)
+            {
+                errors.Add($"Thuoc {medicine.Name} dang ngung su dung.");
             }
 
             if (!selectedMedicineIds.Add(medicine.Id))

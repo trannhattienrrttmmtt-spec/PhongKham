@@ -88,6 +88,8 @@ public class InventoryTransaction : AuditableEntity
     public int Id { get; set; }
     public int MedicineId { get; set; }
     public Medicine? Medicine { get; set; }
+    public int? InventoryLotId { get; set; }
+    public InventoryLot? InventoryLot { get; set; }
 
     [StringLength(40)]
     public string TransactionType { get; set; } = "Import";
@@ -96,6 +98,28 @@ public class InventoryTransaction : AuditableEntity
 
     [StringLength(200)]
     public string ReferenceCode { get; set; } = "";
+}
+
+public class InventoryLot : AuditableEntity
+{
+    public int Id { get; set; }
+    public int MedicineId { get; set; }
+    public Medicine? Medicine { get; set; }
+    public int? SupplierId { get; set; }
+    public Supplier? Supplier { get; set; }
+
+    [StringLength(80)]
+    public string BatchNumber { get; set; } = "";
+
+    [StringLength(40)]
+    public string ReceiptCode { get; set; } = "";
+
+    public int QuantityReceived { get; set; }
+    public int QuantityRemaining { get; set; }
+    public decimal UnitCost { get; set; }
+    public DateTime ExpiryDate { get; set; } = DateTime.Today.AddYears(1);
+    public DateTime ReceivedAt { get; set; } = DateTime.Now;
+    public bool IsClosed { get; set; }
 }
 
 public class PrescriptionDetail

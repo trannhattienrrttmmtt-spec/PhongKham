@@ -22,6 +22,7 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
     public DbSet<InventoryReceipt> InventoryReceipts => Set<InventoryReceipt>();
     public DbSet<InventoryReceiptDetail> InventoryReceiptDetails => Set<InventoryReceiptDetail>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<InventoryLot> InventoryLots => Set<InventoryLot>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -39,6 +40,7 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
         modelBuilder.Entity<InventoryReceipt>().Property(x => x.TotalAmount).HasPrecision(18, 2);
         modelBuilder.Entity<InventoryReceiptDetail>().Property(x => x.UnitCost).HasPrecision(18, 2);
         modelBuilder.Entity<InventoryReceiptDetail>().Property(x => x.LineTotal).HasPrecision(18, 2);
+        modelBuilder.Entity<InventoryLot>().Property(x => x.UnitCost).HasPrecision(18, 2);
         modelBuilder.Entity<Invoice>().Property(x => x.ExaminationFee).HasPrecision(18, 2);
         modelBuilder.Entity<Invoice>().Property(x => x.MedicineFee).HasPrecision(18, 2);
         modelBuilder.Entity<Invoice>().Property(x => x.ServiceFee).HasPrecision(18, 2);
@@ -55,6 +57,8 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
         modelBuilder.Entity<Room>().HasIndex(x => x.RoomNumber).IsUnique();
         modelBuilder.Entity<Specialty>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Medicine>().HasIndex(x => x.Name);
+        modelBuilder.Entity<Medicine>().HasIndex(x => x.Code);
+        modelBuilder.Entity<InventoryLot>().HasIndex(x => x.ExpiryDate);
         modelBuilder.Entity<Invoice>().HasIndex(x => x.InvoiceCode).IsUnique();
 
         modelBuilder.Entity<MedicalRecord>()

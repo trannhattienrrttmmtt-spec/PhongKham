@@ -1,0 +1,49 @@
+@model List<AuditLog>
+@{
+    ViewData["Title"] = "Nhật ký thao tác";
+}
+
+<div class="page-title pharmacist-page-title">
+    <div>
+        <span class="eyebrow">Kiểm soát hệ thống</span>
+        <h1>Nhật ký thao tác</h1>
+        <div class="text-muted">Theo dõi các thao tác nhập kho, cấp thuốc, cập nhật nhà cung cấp và dữ liệu kho.</div>
+    </div>
+</div>
+
+<section class="panel pharmacy-panel">
+    <div class="panel-head pharmacy-toolbar-head">
+        <div>
+            <h2>Lịch sử thao tác gần đây</h2>
+            <p>Dùng để rà soát trách nhiệm ca trực và đối chiếu khi có sai lệch tồn kho.</p>
+        </div>
+        <div class="pharmacy-toolbar">
+            <input id="auditSearch" class="form-control" placeholder="Tìm người dùng, hành động, mô tả" />
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table pharmacy-table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Người dùng</th>
+                    <th>Hành động</th>
+                    <th>Đối tượng</th>
+                    <th>Mô tả</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var log in Model)
+            {
+                <tr data-audit-row data-search="@($"{log.UserId} {log.Action} {log.EntityName} {log.EntityId} {log.Description}")">
+                    <td>@log.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><strong>@log.UserId</strong></td>
+                    <td><span class="badge-soft">@log.Action</span></td>
+                    <td>@log.EntityName #@log.EntityId</td>
+                    <td>@log.Description</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

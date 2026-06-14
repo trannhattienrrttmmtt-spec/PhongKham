@@ -163,4 +163,30 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     });
   }
+
+  const wirePharmacyFilter = (searchId, filterId, rowSelector) => {
+    const search = document.getElementById(searchId);
+    const filter = document.getElementById(filterId);
+    const rows = [...document.querySelectorAll(rowSelector)];
+    if (!rows.length || (!search && !filter)) return;
+
+    const apply = () => {
+      const query = (search?.value || "").trim().toLowerCase();
+      const state = filter?.value || "all";
+      rows.forEach(row => {
+        const matchesQuery = !query || (row.dataset.search || "").toLowerCase().includes(query);
+        const matchesState = state === "all" || row.dataset.state === state;
+        row.hidden = !matchesQuery || !matchesState;
+      });
+    };
+
+    search?.addEventListener("input", apply);
+    filter?.addEventListener("change", apply);
+    apply();
+  };
+
+  wirePharmacyFilter("receiptSearch", null, "[data-receipt-row]");
+  wirePharmacyFilter("lotSearch", "lotFilter", "[data-lot-row]");
+  wirePharmacyFilter("transactionSearch", "transactionFilter", "[data-transaction-row]");
+  wirePharmacyFilter("expirySearch", "expiryFilter", "[data-expiry-row]");
 });

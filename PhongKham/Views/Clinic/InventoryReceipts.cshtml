@@ -1,0 +1,109 @@
+@model List<InventoryReceipt>
+@{
+    ViewData["Title"] = "Phieu nhap kho";
+    var medicines = ViewBag.Medicines as List<Medicine> ?? [];
+    var totalReceipts = Model.Count;
+    var totalAmount = Model.Sum(x => x.TotalAmount);
+    var totalUnits = Model.SelectMany(x => x.Details).Sum(x => x.Quantity);
+    var medicineKinds = Model.SelectMany(x => x.Details).Select(x => x.MedicineId).Distinct().Count();
+}
+
+<div class="page-title pharmacist-page-title">
+    <div>
+        <span class="eyebrow">Kho duoc</span>
+        <h1>Phieu nhap kho</h1>
+        <div class="text-muted">Tao phieu nhap, tu cong ton kho va ghi lich su nhap xuat.</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-primary" asp-action="InventoryTransactions">Lich su kho</a>
+        <a class="btn btn-outline-primary" asp-action="InventoryLots">Lo thuoc</a>
+    </div>
+</div>
+
+<section class="pharmacy-command-grid medicine-kpis">
+    <div class="pharmacy-stat accent-teal"><span>Phieu nhap</span><strong>@totalReceipts</strong><small>Gan day</small></div>
+    <div class="pharmacy-stat accent-green"><span>So luong nhap</span><strong>@totalUnits</strong><small>Don vi thuoc</small></div>
+    <div class="pharmacy-stat accent-blue"><span>Gia tri nhap</span><strong>@totalAmount.ToString("N0") d</strong><small>Tam tinh theo phieu</small></div>
+    <div class="pharmacy-stat accent-amber"><span>Thuoc nhap</span><strong>@medicineKinds</strong><small>Loai thuoc</small></div>
+</section>
+
+<section class="dashboard-grid">
+    <div class="panel pharmacy-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Danh sach phieu nhap</h2>
+                <p>Theo doi thuoc da nhap va tong tien tung phieu.</p>
+            </div>
+            <div class="pharmacy-toolbar">
+                <input id="receiptSearch" class="form-control" placeholder="Tim ma phieu, thuoc" />
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table pharmacy-table">
+                <thead>
+                    <tr>
+                        <th>Ma phieu</th>
+                        <th>Ngay nhap</th>
+                        <th>Thuoc</th>
+                        <th>So luong</th>
+                        <th>Tong tien</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var receipt in Model)
+                {
+                    var detailText = string.Join(", ", receipt.Details.Select(x => $"{x.Medicine?.Name ?? "Thuoc"} x{x.Quantity}"));
+                    <tr data-receipt-row data-search="@($"{receipt.ReceiptCode} {detailText}")">
+                        <td><strong>@receipt.ReceiptCode</strong></td>
+                        <td>@receipt.ReceiptDate.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@detailText</td>
+                        <td>@receipt.Details.Sum(x => x.Quantity)</td>
+                        <td><strong>@receipt.TotalAmount.ToString("N0") d</strong></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <aside class="panel pharmacy-mini-panel">
+        <h2>Tao phieu nhap</h2>
+        <form asp-action="AddInventoryReceipt" method="post" class="form-grid single-column">
+            <div>
+                <label class="form-label">Ma phieu</label>
+                <input name="receiptCode" class="form-control" placeholder="Tu tao neu de trong" />
+            </div>
+            <div>
+                <label class="form-label">Thuoc nhap</label>
+                <select name="medicineId" class="form-select" required>
+                    <option value="">Chon thuoc</option>
+                    @foreach (var medicine in medicines)
+                    {
+                        <option value="@medicine.Id">@medicine.Name (@medicine.Unit)</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="form-label">So luong</label>
+                <input name="quantity" type="number" min="1" value="1" class="form-control" required />
+            </div>
+            <div>
+                <label class="form-label">Don gia nhap</label>
+                <input name="unitCost" type="number" min="0" step="100" class="form-control" required />
+            </div>
+            <div>
+                <label class="form-label">So lo</label>
+                <input name="batchNumber" class="form-control" placeholder="VD: LOT-2026-001" />
+            </div>
+            <div>
+                <label class="form-label">Han dung lo</label>
+                <input name="expiryDate" type="date" class="form-control" />
+            </div>
+            <div>
+                <label class="form-label">Ngay nhap</label>
+                <input name="receiptDate" type="datetime-local" class="form-control" />
+            </div>
+            <button type="submit" class="btn btn-primary">Luu phieu nhap</button>
+        </form>
+    </aside>
+</section>
