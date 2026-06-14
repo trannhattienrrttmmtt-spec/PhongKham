@@ -1,31 +1,84 @@
-@model List<MedicalRecord>
+@model PhongKham.ViewModels.MedicalRecordsPageViewModel
 @{
     ViewData["Title"] = "Bệnh án";
-    var patients = (List<Patient>)ViewBag.Patients;
-    var doctors = (List<Doctor>)ViewBag.Doctors;
 }
 
 <div class="page-title">
     <div>
         <h1>Bệnh án</h1>
-        <div class="text-muted">Ghi nhận triệu chứng, chẩn đoán và phác đồ điều trị của mỗi lần khám.</div>
     </div>
 </div>
 
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Tạo bệnh án</h2>
-            <p>Thông tin này giúp theo dõi lịch sử điều trị của bệnh nhân.</p>
+            <h2>@(Model.Form.IsEditing ? "Cập nhật bệnh án" : "Tạo bệnh án từ lịch hẹn")</h2>
         </div>
     </div>
-    <form asp-action="AddMedicalRecord" method="post" class="form-grid">
-        <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
-        <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
-        <input name="Symptoms" class="form-control" placeholder="Triệu chứng" />
-        <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
-        <textarea name="TreatmentPlan" class="form-control wide" placeholder="Phác đồ điều trị"></textarea>
-        <button class="btn btn-primary">Lưu bệnh án</button>
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+    }
+
+    <form asp-action="SaveMedicalRecord" method="post" class="form-grid">
+        @Html.AntiForgeryToken()
+        <input asp-for="Form.Id" type="hidden" />
+        @if (Model.IsDoctor)
+        {
+            <input asp-for="Form.PatientId" type="hidden" />
+            <input asp-for="Form.DoctorId" type="hidden" />
+        }
+
+        <select asp-for="Form.AppointmentId" class="form-select">
+            <option value="">Chọn lịch hẹn</option>
+            @foreach (var appointment in Model.AvailableAppointments)
+            {
+                <option value="@appointment.Id">
+                    @appointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm") - @appointment.Patient?.FullName - @appointment.Doctor?.FullName
+                </option>
+            }
+        </select>
+
+        @if (Model.SelectedAppointment is not null)
+        {
+            <div class="wide alert alert-info">
+                #@Model.SelectedAppointment.Id - @Model.SelectedAppointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm") - @Model.SelectedAppointment.Patient?.FullName
+            </div>
+        }
+
+        @if (!Model.IsDoctor)
+        {
+            <select asp-for="Form.PatientId" class="form-select">
+                @foreach (var patient in Model.Patients)
+                {
+                    <option value="@patient.Id">@patient.FullName</option>
+                }
+            </select>
+            <select asp-for="Form.DoctorId" class="form-select">
+                @foreach (var doctor in Model.Doctors)
+                {
+                    <option value="@doctor.Id">@doctor.FullName</option>
+                }
+            </select>
+        }
+        else
+        {
+            <input class="form-control" value="@Model.CurrentDoctor?.FullName" readonly />
+            <input class="form-control" value="@(Model.SelectedAppointment?.Patient?.FullName ?? "Bệnh nhân từ lịch hẹn")" readonly />
+        }
+
+        <input asp-for="Form.Symptoms" class="form-control" placeholder="Triệu chứng" />
+        <input asp-for="Form.Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+        <textarea asp-for="Form.TreatmentPlan" class="form-control wide" rows="4" placeholder="Phác đồ điều trị"></textarea>
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">@(Model.Form.IsEditing ? "Lưu cập nhật" : "Tạo bệnh án")</button>
+            @if (Model.Form.IsEditing)
+            {
+                <a class="btn btn-outline-primary" asp-action="MedicalRecords">Tạo mới</a>
+            }
+        </div>
     </form>
 </div>
 
@@ -33,16 +86,53 @@
     <div class="panel-head">
         <div>
             <h2>Lịch sử bệnh án</h2>
-            <p>@Model.Count hồ sơ đang được lưu trữ.</p>
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table">
-            <thead><tr><th>Ngày khám</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Triệu chứng</th><th>Chẩn đoán</th><th>Điều trị</th></tr></thead>
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Ngày khám</th>
+                    <th>Lịch hẹn</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bác sĩ</th>
+                    <th>Triệu chứng</th>
+                    <th>Chẩn đoán</th>
+                    <th>Điều trị</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
             <tbody>
-            @foreach (var x in Model)
+            @foreach (var record in Model.Records)
             {
-                <tr><td>@x.VisitDate.ToString("dd/MM/yyyy HH:mm")</td><td><strong>@x.Patient?.FullName</strong></td><td>@x.Doctor?.FullName</td><td>@x.Symptoms</td><td>@x.Diagnosis</td><td>@x.TreatmentPlan</td></tr>
+                <tr>
+                    <td>@record.VisitDate.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        @if (record.AppointmentId.HasValue && record.Appointment is not null)
+                        {
+                            <span>#@record.AppointmentId - @record.Appointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Chưa gắn lịch hẹn</span>
+                        }
+                    </td>
+                    <td><strong>@record.Patient?.FullName</strong></td>
+                    <td>@record.Doctor?.FullName</td>
+                    <td>@record.Symptoms</td>
+                    <td>@record.Diagnosis</td>
+                    <td>@record.TreatmentPlan</td>
+                    <td>
+                        <div class="d-flex flex-column gap-2">
+                            <a class="btn btn-sm btn-outline-primary" asp-action="MedicalRecords" asp-route-editId="@record.Id">Sửa</a>
+                            <form asp-action="DeleteMedicalRecord" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@record.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
             }
             </tbody>
         </table>

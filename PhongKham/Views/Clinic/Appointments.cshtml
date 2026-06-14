@@ -1,8 +1,11 @@
 @model List<Appointment>
 @{
     ViewData["Title"] = "Lịch hẹn";
-    var patients = (List<Patient>)ViewBag.Patients;
-    var doctors = (List<Doctor>)ViewBag.Doctors;
+    var patients = ViewBag.Patients as List<Patient> ?? [];
+    var doctors = ViewBag.Doctors as List<Doctor> ?? [];
+    var statusOptions = ViewBag.StatusOptions as string[] ?? [];
+    var medicalRecordMap = ViewBag.MedicalRecordMap as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var prescriptionMap = ViewBag.PrescriptionMap as Dictionary<int, int> ?? new Dictionary<int, int>();
     var isPatient = User.IsInRole("BenhNhan");
     var isDoctor = User.IsInRole("BacSi");
     var isAdmin = User.IsInRole("Admin");
@@ -10,14 +13,7 @@
 
 <div class="page-title">
     <div>
-        <h1>@(isPatient ? "Lịch khám của tôi" : isDoctor ? "Lịch khám hôm nay" : "Quản lý lịch hẹn")</h1>
-        <div class="text-muted">
-            @(isPatient
-                ? "Đặt lịch và theo dõi trạng thái cuộc hẹn của bạn."
-                : isDoctor
-                    ? "Theo dõi danh sách bệnh nhân đã đặt lịch khám."
-                    : "Đặt lịch, theo dõi trạng thái và điều phối bệnh nhân đến khám.")
-        </div>
+        <h1>@(isPatient ? "Lịch khám của tôi" : isDoctor ? "Lịch khám của bác sĩ" : "Quản lý lịch hẹn")</h1>
     </div>
 </div>
 
@@ -26,28 +22,45 @@
     <div class="panel">
         <div class="panel-head">
             <div>
-                <h2>@(isPatient ? "Đặt lịch khám" : "Đặt lịch mới")</h2>
-                <p>@(isPatient ? "Chọn bác sĩ, thời gian và ghi ngắn gọn lý do khám." : "Chọn bệnh nhân, bác sĩ và thời gian phù hợp.")</p>
+                <h2>@(isPatient ? "Đặt lịch khám" : "Tạo lịch hẹn mới")</h2>
             </div>
         </div>
         <form asp-action="AddAppointment" method="post" class="form-grid">
+            @Html.AntiForgeryToken()
             @if (isPatient)
             {
-                <select name="PatientId" class="form-select" hidden>
-                    @foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}
-                </select>
+                <input type="hidden" name="PatientId" value="@patients.FirstOrDefault()?.Id" />
             }
             else
             {
-                <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+                <select name="PatientId" class="form-select">
+                    @foreach (var patient in patients)
+                    {
+                        <option value="@patient.Id">@patient.FullName</option>
+                    }
+                </select>
             }
-            <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName - @d.Specialty</option>}</select>
+
+            <select name="DoctorId" class="form-select">
+                @foreach (var doctor in doctors)
+                {
+                    <option value="@doctor.Id">@doctor.FullName - @doctor.Specialty</option>
+                }
+            </select>
+
             <input name="AppointmentTime" type="datetime-local" class="form-control" />
+
             @if (isAdmin)
             {
                 <input name="Fee" type="number" class="form-control" placeholder="Phí khám" value="150000" />
-                <select name="Status" class="form-select"><option>Đã đặt lịch</option><option>Đã xác nhận</option><option>Đang chờ</option><option>Hoàn tất</option><option>Hủy</option></select>
+                <select name="Status" class="form-select">
+                    @foreach (var status in new[] { "Đã đặt lịch", "Đã xác nhận", "Đang chờ", "Đang khám", "Hoàn tất", "Hủy" })
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
             }
+
             <input name="Reason" class="form-control wide" placeholder="Lý do khám" />
             <button class="btn btn-primary">@(isPatient ? "Gửi lịch hẹn" : "Lưu lịch hẹn")</button>
         </form>
@@ -57,23 +70,75 @@
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>@(isPatient ? "Lịch hẹn của tôi" : "Danh sách lịch hẹn")</h2>
-            <p>@Model.Count lịch hẹn đang được ghi nhận.</p>
+            <h2>@(isDoctor ? "Lịch khám được giao" : isPatient ? "Lịch hẹn của tôi" : "Danh sách lịch hẹn")</h2>
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table">
-            <thead><tr><th>Thời gian</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Lý do</th><th>Phí</th><th>Trạng thái</th></tr></thead>
-            <tbody>
-            @foreach (var x in Model)
-            {
+        <table class="table align-middle">
+            <thead>
                 <tr>
-                    <td>@x.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
-                    <td><strong>@x.Patient?.FullName</strong></td>
-                    <td>@x.Doctor?.FullName</td>
-                    <td>@x.Reason</td>
-                    <td>@x.Fee.ToString("N0") &#273;</td>
-                    <td><span class="badge badge-soft">@x.Status</span></td>
+                    <th>Thời gian</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bác sĩ</th>
+                    <th>Lý do</th>
+                    <th>Phí</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                medicalRecordMap.TryGetValue(item.Id, out var medicalRecordId);
+                prescriptionMap.TryGetValue(item.Id, out var prescriptionId);
+                <tr>
+                    <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        <strong>@item.Patient?.FullName</strong>
+                    </td>
+                    <td>@item.Doctor?.FullName</td>
+                    <td>@item.Reason</td>
+                    <td>@item.Fee.ToString("N0") &#273;</td>
+                    <td>
+                        <span class="badge badge-soft">@item.Status</span>
+                    </td>
+                    <td>
+                        @if (isDoctor)
+                        {
+                            <div class="d-flex flex-column gap-2">
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var status in statusOptions)
+                                    {
+                                        if (!string.Equals(item.Status, status, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <form asp-action="UpdateAppointmentStatus" method="post">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="status" value="@status" />
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">@status</button>
+                                            </form>
+                                        }
+                                    }
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a class="btn btn-sm btn-primary" asp-action="MedicalRecords" asp-route-appointmentId="@item.Id">
+                                        @(medicalRecordId > 0 ? "Mở bệnh án" : "Tạo bệnh án")
+                                    </a>
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="Prescriptions" asp-route-appointmentId="@item.Id">
+                                        @(prescriptionId > 0 ? "Mở đơn thuốc" : "Kê đơn")
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                        else if (isAdmin)
+                        {
+                            <span>-</span>
+                        }
+                        else
+                        {
+                            <span>-</span>
+                        }
+                    </td>
                 </tr>
             }
             </tbody>

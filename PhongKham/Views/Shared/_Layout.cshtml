@@ -82,6 +82,14 @@
                 {
                     <div class="alert alert-warning database-alert">@databaseWarning</div>
                 }
+                @if (TempData["WorkflowWarning"] is string workflowWarning)
+                {
+                    <div class="alert alert-warning">@workflowWarning</div>
+                }
+                @if (TempData["SuccessMessage"] is string successMessage)
+                {
+                    <div class="alert alert-success">@successMessage</div>
+                }
                 @RenderBody()
             </main>
         </div>

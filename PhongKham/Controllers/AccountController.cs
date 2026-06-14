@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -11,11 +13,26 @@ public class AccountController(
     SignInManager<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole> roleManager,
-    ClinicDbContext db) : Controller
+    ClinicDbContext db,
+    DatabaseRuntimeState databaseRuntimeState) : Controller
 {
+    private const string DemoPassword = "Dev@123456";
+    private static readonly DemoAccount[] DemoAccounts =
+    [
+        new("admin@phongkham.local", "Admin", "Quan tri he thong"),
+        new("bacsi@phongkham.local", "BacSi", "Bac si phong kham"),
+        new("duocsi@phongkham.local", "DuocSi", "Duoc si"),
+        new("benhnhan@phongkham.local", "BenhNhan", "Benh nhan mau")
+    ];
+
     [AllowAnonymous]
     public IActionResult Login(string? returnUrl = null)
     {
+        if (!databaseRuntimeState.IsAvailable)
+        {
+            ViewData["DatabaseWarning"] = DemoModeWarning();
+        }
+
         return View(new LoginViewModel { ReturnUrl = returnUrl });
     }
 
@@ -30,6 +47,12 @@ public class AccountController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
+        if (!databaseRuntimeState.IsAvailable)
+        {
+            ModelState.AddModelError(string.Empty, "SQL Server chua san sang. Hien tai chi dang nhap demo de mo web.");
+            return View(model);
+        }
+
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -38,7 +61,7 @@ public class AccountController(
         var existingUser = await userManager.FindByEmailAsync(model.Email);
         if (existingUser is not null)
         {
-            ModelState.AddModelError(nameof(model.Email), "Email này đã được sử dụng.");
+            ModelState.AddModelError(nameof(model.Email), "Email nay da duoc su dung.");
             return View(model);
         }
 
@@ -64,6 +87,7 @@ public class AccountController(
             {
                 ModelState.AddModelError(string.Empty, error.Description);
             }
+
             return View(model);
         }
 
@@ -90,13 +114,33 @@ public class AccountController(
     {
         if (!ModelState.IsValid)
         {
+            if (!databaseRuntimeState.IsAvailable)
+            {
+                ViewData["DatabaseWarning"] = DemoModeWarning();
+            }
+
             return View(model);
+        }
+
+        if (!databaseRuntimeState.IsAvailable)
+        {
+            var demoAccount = FindDemoAccount(model.Email, model.Password);
+            if (demoAccount is null)
+            {
+                ViewData["DatabaseWarning"] = DemoModeWarning();
+                ModelState.AddModelError(string.Empty, "SQL Server chua san sang. Hay dung tai khoan demo va mat khau Dev@123456.");
+                return View(model);
+            }
+
+            await SignInDemoAccountAsync(demoAccount, model.RememberMe);
+            TempData["DatabaseWarning"] = "Dang chay o che do demo vi chua ket noi duoc SQL Server.";
+            return LocalRedirect(model.ReturnUrl ?? Url.Action("Dashboard", "Clinic")!);
         }
 
         var user = await userManager.FindByEmailAsync(model.Email);
         if (user is null || !user.IsActive)
         {
-            ModelState.AddModelError(string.Empty, "Tài khoản không tồn tại hoặc đã bị khóa.");
+            ModelState.AddModelError(string.Empty, "Tai khoan khong ton tai hoac da bi khoa.");
             return View(model);
         }
 
@@ -115,11 +159,11 @@ public class AccountController(
 
         if (result.IsLockedOut)
         {
-            ModelState.AddModelError(string.Empty, "Tài khoản đang bị khóa tạm thời do đăng nhập sai nhiều lần.");
+            ModelState.AddModelError(string.Empty, "Tai khoan dang bi khoa tam thoi do dang nhap sai nhieu lan.");
         }
         else
         {
-            ModelState.AddModelError(string.Empty, "Email hoặc mật khẩu không đúng.");
+            ModelState.AddModelError(string.Empty, "Email hoac mat khau khong dung.");
         }
 
         return View(model);
@@ -138,4 +182,51 @@ public class AccountController(
     {
         return View();
     }
+
+    private DemoAccount? FindDemoAccount(string email, string password)
+    {
+        if (!string.Equals(password, DemoPassword, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return DemoAccounts.FirstOrDefault(x =>
+            string.Equals(x.Email, email, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task SignInDemoAccountAsync(DemoAccount account, bool rememberMe)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, account.Email),
+            new(ClaimTypes.Name, account.Email),
+            new(ClaimTypes.Email, account.Email),
+            new("FullName", account.FullName),
+            new(ClaimTypes.Role, account.Role)
+        };
+
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity(claims, IdentityConstants.ApplicationScheme));
+
+        await HttpContext.SignInAsync(
+            IdentityConstants.ApplicationScheme,
+            principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = rememberMe,
+                AllowRefresh = true,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(12)
+            });
+    }
+
+    private string DemoModeWarning()
+    {
+        var detail = string.IsNullOrWhiteSpace(databaseRuntimeState.LastError)
+            ? ""
+            : $" Chi tiet: {databaseRuntimeState.LastError}";
+
+        return $"SQL Server chua san sang. Ban van co the dang nhap bang tai khoan demo.{detail}";
+    }
+
+    private sealed record DemoAccount(string Email, string Role, string FullName);
 }

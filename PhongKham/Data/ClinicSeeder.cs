@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using PhongKham.Models;
 
 namespace PhongKham.Data;
@@ -14,50 +15,238 @@ public static class ClinicSeeder
         await RemoveReceptionistUsersAsync(userManager, roleManager);
         await NormalizeIdentityDisplayNamesAsync(userManager);
 
-        if (db.Patients.Any())
+        if (!await db.Patients.AnyAsync())
         {
-            NormalizeSeedDisplayData(db);
+            await SeedReferenceDataAsync(db);
             return;
         }
 
+        await EnsureDoctorWorkflowSeedDataAsync(db);
+    }
+
+    private static async Task SeedReferenceDataAsync(ClinicDbContext db)
+    {
         var patients = new[]
         {
-            new Patient { FullName = "Nguyễn Văn An", Gender = "Nam", DateOfBirth = new DateTime(1988, 4, 12), Phone = "0901234567", Address = "Quận 1, TP.HCM", InsuranceCode = "BH001" },
-            new Patient { FullName = "Trần Thị Bích", Gender = "Nữ", DateOfBirth = new DateTime(1994, 9, 3), Phone = "0912345678", Address = "Thủ Đức, TP.HCM", InsuranceCode = "BH002" },
-            new Patient { FullName = "Lê Minh Châu", Gender = "Nữ", DateOfBirth = new DateTime(1979, 1, 20), Phone = "0987654321", Address = "Bình Thạnh, TP.HCM", InsuranceCode = "BH003" }
+            new Patient
+            {
+                FullName = "Nguyen Van An",
+                Gender = "Nam",
+                DateOfBirth = new DateTime(1988, 4, 12),
+                Phone = "0901234567",
+                Address = "Quan 1, TP.HCM",
+                InsuranceCode = "BH001",
+                AllergyNotes = ""
+            },
+            new Patient
+            {
+                FullName = "Tran Thi Bich",
+                Gender = "Nu",
+                DateOfBirth = new DateTime(1994, 9, 3),
+                Phone = "0912345678",
+                Address = "Thu Duc, TP.HCM",
+                InsuranceCode = "BH002",
+                AllergyNotes = "Di ung voi Amoxicillin"
+            },
+            new Patient
+            {
+                FullName = "Le Minh Chau",
+                Gender = "Nu",
+                DateOfBirth = new DateTime(1979, 1, 20),
+                Phone = "0987654321",
+                Address = "Binh Thanh, TP.HCM",
+                InsuranceCode = "BH003",
+                AllergyNotes = "Khong ghi nhan di ung"
+            }
         };
+
         var doctors = new[]
         {
-            new Doctor { FullName = "BS. Phạm Quốc Huy", Specialty = "Nội tổng quát", Phone = "02838111111" },
-            new Doctor { FullName = "BS. Võ Thanh Tâm", Specialty = "Nhi khoa", Phone = "02838222222" },
-            new Doctor { FullName = "BS. Đặng Hoài Linh", Specialty = "Tim mạch", Phone = "02838333333" }
+            new Doctor
+            {
+                FullName = "BS. Pham Quoc Huy",
+                Specialty = "Noi tong quat",
+                Phone = "02838111111",
+                AccountEmail = "bacsi@phongkham.local",
+                Status = "Dang lam viec"
+            },
+            new Doctor
+            {
+                FullName = "BS. Vo Thanh Tam",
+                Specialty = "Nhi khoa",
+                Phone = "02838222222",
+                Status = "Dang lam viec"
+            },
+            new Doctor
+            {
+                FullName = "BS. Dang Hoai Linh",
+                Specialty = "Tim mach",
+                Phone = "02838333333",
+                Status = "Dang lam viec"
+            }
         };
+
+        var medicines = new[]
+        {
+            new Medicine
+            {
+                Name = "Paracetamol 500mg",
+                Unit = "Vien",
+                QuantityInStock = 240,
+                UnitPrice = 1200,
+                ExpiryDate = DateTime.Today.AddMonths(18)
+            },
+            new Medicine
+            {
+                Name = "Amoxicillin 500mg",
+                Unit = "Vien",
+                QuantityInStock = 80,
+                UnitPrice = 2500,
+                ExpiryDate = DateTime.Today.AddMonths(10)
+            },
+            new Medicine
+            {
+                Name = "Nuoc muoi sinh ly",
+                Unit = "Chai",
+                QuantityInStock = 18,
+                UnitPrice = 9000,
+                ExpiryDate = DateTime.Today.AddMonths(8)
+            }
+        };
+
         db.Patients.AddRange(patients);
         db.Doctors.AddRange(doctors);
         db.Rooms.AddRange(
-            new Room { RoomNumber = "P101", Department = "Khám bệnh", Capacity = 4, OccupiedBeds = 1 },
-            new Room { RoomNumber = "P202", Department = "Nội trú", Capacity = 8, OccupiedBeds = 5 },
-            new Room { RoomNumber = "P301", Department = "Cấp cứu", Capacity = 6, OccupiedBeds = 2, Status = "Ưu tiên" });
-        db.Medicines.AddRange(
-            new Medicine { Name = "Paracetamol 500mg", Unit = "Viên", QuantityInStock = 240, UnitPrice = 1200, ExpiryDate = DateTime.Today.AddMonths(18) },
-            new Medicine { Name = "Amoxicillin 500mg", Unit = "Viên", QuantityInStock = 80, UnitPrice = 2500, ExpiryDate = DateTime.Today.AddMonths(10) },
-            new Medicine { Name = "Nước muối sinh lý", Unit = "Chai", QuantityInStock = 18, UnitPrice = 9000, ExpiryDate = DateTime.Today.AddMonths(8) });
+            new Room { RoomNumber = "P101", Department = "Kham benh", Capacity = 4, OccupiedBeds = 1 },
+            new Room { RoomNumber = "P202", Department = "Noi tru", Capacity = 8, OccupiedBeds = 5 },
+            new Room { RoomNumber = "P301", Department = "Cap cuu", Capacity = 6, OccupiedBeds = 2, Status = "Uu tien" });
+        db.Medicines.AddRange(medicines);
         db.UserAccounts.AddRange(
-            new UserAccount { UserName = "admin", DisplayName = "Quản trị hệ thống", Role = "Quản trị" },
-            new UserAccount { UserName = "duocsi", DisplayName = "Kho dược", Role = "Dược sĩ" });
-        db.SaveChanges();
+            new UserAccount { UserName = "admin", DisplayName = "Quan tri he thong", Role = "Quan tri" },
+            new UserAccount { UserName = "duocsi", DisplayName = "Kho duoc", Role = "Duoc si" });
+        await db.SaveChangesAsync();
 
-        db.Appointments.AddRange(
-            new Appointment { PatientId = patients[0].Id, DoctorId = doctors[0].Id, AppointmentTime = DateTime.Today.AddHours(9), Reason = "Khám tổng quát", Fee = 150000, Status = "Đang chờ" },
-            new Appointment { PatientId = patients[1].Id, DoctorId = doctors[1].Id, AppointmentTime = DateTime.Today.AddHours(14), Reason = "Sốt và ho", Fee = 180000, Status = "Đã xác nhận" },
-            new Appointment { PatientId = patients[2].Id, DoctorId = doctors[2].Id, AppointmentTime = DateTime.Today.AddDays(1).AddHours(10), Reason = "Tái khám tim mạch", Fee = 220000, Status = "Đã đặt lịch" });
-        db.Prescriptions.AddRange(
-            new Prescription { PatientId = patients[1].Id, DoctorId = doctors[1].Id, Diagnosis = "Viêm họng cấp", Instructions = "Uống thuốc sau ăn, tái khám nếu sốt cao", TotalAmount = 185000 },
-            new Prescription { PatientId = patients[2].Id, DoctorId = doctors[2].Id, Diagnosis = "Tăng huyết áp", Instructions = "Đo huyết áp mỗi sáng", TotalAmount = 320000 });
-        db.MedicalRecords.AddRange(
-            new MedicalRecord { PatientId = patients[0].Id, DoctorId = doctors[0].Id, Symptoms = "Mệt mỏi, đau đầu", Diagnosis = "Suy nhược nhẹ", TreatmentPlan = "Nghỉ ngơi, bổ sung vitamin" },
-            new MedicalRecord { PatientId = patients[1].Id, DoctorId = doctors[1].Id, Symptoms = "Ho, sốt 38.5", Diagnosis = "Viêm họng cấp", TreatmentPlan = "Thuốc kháng viêm và theo dõi" });
-        db.SaveChanges();
+        var appointments = new[]
+        {
+            new Appointment
+            {
+                PatientId = patients[0].Id,
+                DoctorId = doctors[0].Id,
+                AppointmentTime = DateTime.Today.AddHours(9),
+                Reason = "Kham tong quat",
+                Fee = 150000,
+                Status = "Dang cho"
+            },
+            new Appointment
+            {
+                PatientId = patients[1].Id,
+                DoctorId = doctors[0].Id,
+                AppointmentTime = DateTime.Today.AddHours(14),
+                Reason = "Sot va ho",
+                Fee = 180000,
+                Status = "Da xac nhan"
+            },
+            new Appointment
+            {
+                PatientId = patients[2].Id,
+                DoctorId = doctors[2].Id,
+                AppointmentTime = DateTime.Today.AddDays(1).AddHours(10),
+                Reason = "Tai kham tim mach",
+                Fee = 220000,
+                Status = "Da dat lich"
+            }
+        };
+
+        db.Appointments.AddRange(appointments);
+        await db.SaveChangesAsync();
+
+        var medicalRecords = new[]
+        {
+            new MedicalRecord
+            {
+                AppointmentId = appointments[0].Id,
+                PatientId = patients[0].Id,
+                DoctorId = doctors[0].Id,
+                VisitDate = DateTime.Today.AddHours(9).AddMinutes(30),
+                Symptoms = "Met moi, dau dau",
+                Diagnosis = "Suy nhuoc nhe",
+                TreatmentPlan = "Nghi ngoi, bo sung vitamin"
+            },
+            new MedicalRecord
+            {
+                AppointmentId = appointments[1].Id,
+                PatientId = patients[1].Id,
+                DoctorId = doctors[0].Id,
+                VisitDate = DateTime.Today.AddHours(14).AddMinutes(15),
+                Symptoms = "Ho, sot 38.5",
+                Diagnosis = "Viem hong cap",
+                TreatmentPlan = "Thuoc khang viem va theo doi"
+            }
+        };
+
+        var prescriptions = new[]
+        {
+            new Prescription
+            {
+                AppointmentId = appointments[0].Id,
+                PatientId = patients[0].Id,
+                DoctorId = doctors[0].Id,
+                CreatedAt = DateTime.Today.AddHours(9).AddMinutes(40),
+                Diagnosis = "Suy nhuoc nhe",
+                Instructions = "Uong nhieu nuoc, nghi ngo, tai kham neu khong giam",
+                TotalAmount = 36000
+            },
+            new Prescription
+            {
+                AppointmentId = appointments[1].Id,
+                PatientId = patients[1].Id,
+                DoctorId = doctors[0].Id,
+                CreatedAt = DateTime.Today.AddHours(14).AddMinutes(25),
+                Diagnosis = "Viem hong cap",
+                Instructions = "Theo doi sot, khong dung Amoxicillin do tien su di ung",
+                TotalAmount = 45000
+            }
+        };
+
+        db.MedicalRecords.AddRange(medicalRecords);
+        db.Prescriptions.AddRange(prescriptions);
+        await db.SaveChangesAsync();
+
+        db.PrescriptionDetails.AddRange(
+            new PrescriptionDetail
+            {
+                PrescriptionId = prescriptions[0].Id,
+                MedicineId = medicines[0].Id,
+                Quantity = 10,
+                Dosage = "1 vien x 2 lan/ngay",
+                Route = "Duong uong",
+                UsageInstruction = "Sau an sang va toi",
+                UnitPrice = medicines[0].UnitPrice,
+                LineTotal = medicines[0].UnitPrice * 10
+            },
+            new PrescriptionDetail
+            {
+                PrescriptionId = prescriptions[1].Id,
+                MedicineId = medicines[0].Id,
+                Quantity = 15,
+                Dosage = "1 vien khi sot",
+                Route = "Duong uong",
+                UsageInstruction = "Moi 6 gio neu sot tren 38 do",
+                UnitPrice = medicines[0].UnitPrice,
+                LineTotal = medicines[0].UnitPrice * 15
+            },
+            new PrescriptionDetail
+            {
+                PrescriptionId = prescriptions[1].Id,
+                MedicineId = medicines[2].Id,
+                Quantity = 3,
+                Dosage = "1 chai x 3 lan/ngay",
+                Route = "Suc hong",
+                UsageInstruction = "Suc hong sau khi danh rang",
+                UnitPrice = medicines[2].UnitPrice,
+                LineTotal = medicines[2].UnitPrice * 3
+            });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedRolesAndUsersAsync(
@@ -73,10 +262,10 @@ public static class ClinicSeeder
             }
         }
 
-        await EnsureUserAsync(userManager, "admin@phongkham.local", "Quản trị hệ thống", "Admin", "Admin");
-        await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bác sĩ phòng khám", "BacSi", "BacSi");
-        await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Dược sĩ", "DuocSi", "DuocSi");
-        await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Bệnh nhân mẫu", "BenhNhan", "BenhNhan");
+        await EnsureUserAsync(userManager, "admin@phongkham.local", "Quan tri he thong", "Admin", "Admin");
+        await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bac si phong kham", "BacSi", "BacSi");
+        await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Duoc si", "DuocSi", "DuocSi");
+        await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Benh nhan mau", "BenhNhan", "BenhNhan");
     }
 
     private static async Task EnsureUserAsync(
@@ -103,6 +292,13 @@ public static class ClinicSeeder
             {
                 return;
             }
+        }
+
+        if (user.FullName != fullName || user.StaffCode != staffCode)
+        {
+            user.FullName = fullName;
+            user.StaffCode = staffCode;
+            await userManager.UpdateAsync(user);
         }
 
         if (!await userManager.IsInRoleAsync(user, role))
@@ -135,10 +331,10 @@ public static class ClinicSeeder
     {
         var names = new Dictionary<string, string>
         {
-            ["admin@phongkham.local"] = "Quản trị hệ thống",
-            ["bacsi@phongkham.local"] = "Bác sĩ phòng khám",
-            ["duocsi@phongkham.local"] = "Dược sĩ",
-            ["benhnhan@phongkham.local"] = "Bệnh nhân mẫu"
+            ["admin@phongkham.local"] = "Quan tri he thong",
+            ["bacsi@phongkham.local"] = "Bac si phong kham",
+            ["duocsi@phongkham.local"] = "Duoc si",
+            ["benhnhan@phongkham.local"] = "Benh nhan mau"
         };
 
         foreach (var (email, fullName) in names)
@@ -152,133 +348,97 @@ public static class ClinicSeeder
         }
     }
 
-    private static void NormalizeSeedDisplayData(ClinicDbContext db)
+    private static async Task EnsureDoctorWorkflowSeedDataAsync(ClinicDbContext db)
     {
         var changed = false;
-        changed |= UpdatePatient(db, "Nguyen Van An", "Nguyễn Văn An", "Nam", "Quận 1, TP.HCM");
-        changed |= UpdatePatient(db, "Tran Thi Bich", "Trần Thị Bích", "Nữ", "Thủ Đức, TP.HCM");
-        changed |= UpdatePatient(db, "Le Minh Chau", "Lê Minh Châu", "Nữ", "Bình Thạnh, TP.HCM");
 
-        changed |= UpdateDoctor(db, "BS. Pham Quoc Huy", "BS. Phạm Quốc Huy", "Nội tổng quát");
-        changed |= UpdateDoctor(db, "BS. Vo Thanh Tam", "BS. Võ Thanh Tâm", "Nhi khoa");
-        changed |= UpdateDoctor(db, "BS. Dang Hoai Linh", "BS. Đặng Hoài Linh", "Tim mạch");
-
-        changed |= UpdateRoom(db, "P101", "Khám bệnh", null);
-        changed |= UpdateRoom(db, "P202", "Nội trú", null);
-        changed |= UpdateRoom(db, "P301", "Cấp cứu", "Ưu tiên");
-
-        changed |= UpdateMedicine(db, "Paracetamol 500mg", "Viên");
-        changed |= UpdateMedicine(db, "Amoxicillin 500mg", "Viên");
-        changed |= UpdateMedicine(db, "Nuoc muoi sinh ly", "Chai", "Nước muối sinh lý");
-
-        changed |= UpdateUsers(db, "admin", "Quản trị hệ thống", "Quản trị");
-        changed |= RemoveUserAccount(db, "letan");
-        changed |= UpdateUsers(db, "duocsi", "Kho dược", "Dược sĩ");
-
-        foreach (var appointment in db.Appointments)
+        var doctor = await db.Doctors.OrderBy(x => x.Id).FirstOrDefaultAsync();
+        if (doctor is not null && string.IsNullOrWhiteSpace(doctor.AccountEmail))
         {
-            changed |= Replace(appointment.Reason, "Kham tong quat", "Khám tổng quát", value => appointment.Reason = value);
-            changed |= Replace(appointment.Reason, "Sot va ho", "Sốt và ho", value => appointment.Reason = value);
-            changed |= Replace(appointment.Reason, "Tai kham tim mach", "Tái khám tim mạch", value => appointment.Reason = value);
-            changed |= Replace(appointment.Status, "Dang cho", "Đang chờ", value => appointment.Status = value);
-            changed |= Replace(appointment.Status, "Da xac nhan", "Đã xác nhận", value => appointment.Status = value);
-            changed |= Replace(appointment.Status, "Da dat lich", "Đã đặt lịch", value => appointment.Status = value);
+            doctor.AccountEmail = "bacsi@phongkham.local";
+            changed = true;
         }
 
-        foreach (var prescription in db.Prescriptions)
+        var patientWithAllergy = await db.Patients.OrderBy(x => x.Id).Skip(1).FirstOrDefaultAsync();
+        if (patientWithAllergy is not null && string.IsNullOrWhiteSpace(patientWithAllergy.AllergyNotes))
         {
-            changed |= Replace(prescription.Diagnosis, "Viem hong cap", "Viêm họng cấp", value => prescription.Diagnosis = value);
-            changed |= Replace(prescription.Diagnosis, "Tang huyet ap", "Tăng huyết áp", value => prescription.Diagnosis = value);
-            changed |= Replace(prescription.Instructions, "Uong thuoc sau an, tai kham neu sot cao", "Uống thuốc sau ăn, tái khám nếu sốt cao", value => prescription.Instructions = value);
-            changed |= Replace(prescription.Instructions, "Do huyet ap moi sang", "Đo huyết áp mỗi sáng", value => prescription.Instructions = value);
+            patientWithAllergy.AllergyNotes = "Di ung voi Amoxicillin";
+            changed = true;
         }
 
-        foreach (var record in db.MedicalRecords)
+        var otherPatients = await db.Patients.Where(x => x.Id != (patientWithAllergy != null ? patientWithAllergy.Id : 0)).ToListAsync();
+        foreach (var patient in otherPatients.Where(x => string.IsNullOrWhiteSpace(x.AllergyNotes)))
         {
-            changed |= Replace(record.Symptoms, "Met moi, dau dau", "Mệt mỏi, đau đầu", value => record.Symptoms = value);
-            changed |= Replace(record.Symptoms, "Ho, sot 38.5", "Ho, sốt 38.5", value => record.Symptoms = value);
-            changed |= Replace(record.Diagnosis, "Suy nhuoc nhe", "Suy nhược nhẹ", value => record.Diagnosis = value);
-            changed |= Replace(record.Diagnosis, "Viem hong cap", "Viêm họng cấp", value => record.Diagnosis = value);
-            changed |= Replace(record.TreatmentPlan, "Nghi ngoi, bo sung vitamin", "Nghỉ ngơi, bổ sung vitamin", value => record.TreatmentPlan = value);
-            changed |= Replace(record.TreatmentPlan, "Thuoc khang viem va theo doi", "Thuốc kháng viêm và theo dõi", value => record.TreatmentPlan = value);
+            patient.AllergyNotes = "";
+            changed = true;
+        }
+
+        var appointments = await db.Appointments.OrderBy(x => x.AppointmentTime).ToListAsync();
+        foreach (var record in await db.MedicalRecords.Where(x => x.AppointmentId == null).ToListAsync())
+        {
+            var match = appointments.FirstOrDefault(x => x.PatientId == record.PatientId && x.DoctorId == record.DoctorId);
+            if (match is not null)
+            {
+                record.AppointmentId = match.Id;
+                changed = true;
+            }
+        }
+
+        foreach (var prescription in await db.Prescriptions.Where(x => x.AppointmentId == null).ToListAsync())
+        {
+            var match = appointments.FirstOrDefault(x => x.PatientId == prescription.PatientId && x.DoctorId == prescription.DoctorId);
+            if (match is not null)
+            {
+                prescription.AppointmentId = match.Id;
+                changed = true;
+            }
+        }
+
+        if (!await db.PrescriptionDetails.AnyAsync())
+        {
+            var prescriptions = await db.Prescriptions.OrderBy(x => x.Id).ToListAsync();
+            var medicines = await db.Medicines.OrderBy(x => x.Id).ToListAsync();
+            if (prescriptions.Count > 0 && medicines.Count > 0)
+            {
+                var firstMedicine = medicines[0];
+                var saline = medicines.Count > 2 ? medicines[2] : medicines[0];
+
+                db.PrescriptionDetails.Add(
+                    new PrescriptionDetail
+                    {
+                        PrescriptionId = prescriptions[0].Id,
+                        MedicineId = firstMedicine.Id,
+                        Quantity = 10,
+                        Dosage = "1 vien x 2 lan/ngay",
+                        Route = "Duong uong",
+                        UsageInstruction = "Sau an sang va toi",
+                        UnitPrice = firstMedicine.UnitPrice,
+                        LineTotal = firstMedicine.UnitPrice * 10
+                    });
+
+                if (prescriptions.Count > 1)
+                {
+                    db.PrescriptionDetails.Add(
+                        new PrescriptionDetail
+                        {
+                            PrescriptionId = prescriptions[1].Id,
+                            MedicineId = saline.Id,
+                            Quantity = 2,
+                            Dosage = "1 chai x 2 lan/ngay",
+                            Route = "Suc hong",
+                            UsageInstruction = "Dung sau khi ve sinh rang mieng",
+                            UnitPrice = saline.UnitPrice,
+                            LineTotal = saline.UnitPrice * 2
+                        });
+                }
+
+                changed = true;
+            }
         }
 
         if (changed)
         {
-            db.SaveChanges();
+            await db.SaveChangesAsync();
         }
-    }
-
-    private static bool UpdatePatient(ClinicDbContext db, string oldName, string newName, string gender, string address)
-    {
-        var entity = db.Patients.FirstOrDefault(x => x.FullName == oldName || x.FullName == newName);
-        if (entity is null) return false;
-        var changed = Replace(entity.FullName, entity.FullName, newName, value => entity.FullName = value);
-        changed |= Replace(entity.Gender, entity.Gender, gender, value => entity.Gender = value);
-        changed |= Replace(entity.Address, entity.Address, address, value => entity.Address = value);
-        return changed;
-    }
-
-    private static bool UpdateDoctor(ClinicDbContext db, string oldName, string newName, string specialty)
-    {
-        var entity = db.Doctors.FirstOrDefault(x => x.FullName == oldName || x.FullName == newName);
-        if (entity is null) return false;
-        var changed = Replace(entity.FullName, entity.FullName, newName, value => entity.FullName = value);
-        changed |= Replace(entity.Specialty, entity.Specialty, specialty, value => entity.Specialty = value);
-        return changed;
-    }
-
-    private static bool UpdateRoom(ClinicDbContext db, string roomNumber, string department, string? status)
-    {
-        var entity = db.Rooms.FirstOrDefault(x => x.RoomNumber == roomNumber);
-        if (entity is null) return false;
-        var changed = Replace(entity.Department, entity.Department, department, value => entity.Department = value);
-        if (status is not null)
-        {
-            changed |= Replace(entity.Status, entity.Status, status, value => entity.Status = value);
-        }
-        return changed;
-    }
-
-    private static bool UpdateMedicine(ClinicDbContext db, string name, string unit, string? newName = null)
-    {
-        var entity = db.Medicines.FirstOrDefault(x => x.Name == name || x.Name == newName);
-        if (entity is null) return false;
-        var changed = false;
-        if (newName is not null)
-        {
-            changed |= Replace(entity.Name, entity.Name, newName, value => entity.Name = value);
-        }
-        changed |= Replace(entity.Unit, entity.Unit, unit, value => entity.Unit = value);
-        return changed;
-    }
-
-    private static bool UpdateUsers(ClinicDbContext db, string userName, string displayName, string role)
-    {
-        var entity = db.UserAccounts.FirstOrDefault(x => x.UserName == userName);
-        if (entity is null) return false;
-        var changed = Replace(entity.DisplayName, entity.DisplayName, displayName, value => entity.DisplayName = value);
-        changed |= Replace(entity.Role, entity.Role, role, value => entity.Role = value);
-        return changed;
-    }
-
-    private static bool RemoveUserAccount(ClinicDbContext db, string userName)
-    {
-        var entity = db.UserAccounts.FirstOrDefault(x => x.UserName == userName);
-        if (entity is null) return false;
-
-        db.UserAccounts.Remove(entity);
-        return true;
-    }
-
-    private static bool Replace(string current, string oldValue, string newValue, Action<string> setValue)
-    {
-        if (current != oldValue || current == newValue)
-        {
-            return false;
-        }
-
-        setValue(newValue);
-        return true;
     }
 }

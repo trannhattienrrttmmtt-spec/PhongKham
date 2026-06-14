@@ -1,48 +1,257 @@
-@model List<Prescription>
+@model PhongKham.ViewModels.PrescriptionsPageViewModel
 @{
     ViewData["Title"] = "Đơn thuốc";
-    var patients = (List<Patient>)ViewBag.Patients;
-    var doctors = (List<Doctor>)ViewBag.Doctors;
+    var canEdit = User.IsInRole("Admin") || User.IsInRole("BacSi");
 }
 
 <div class="page-title">
     <div>
         <h1>Đơn thuốc</h1>
-        <div class="text-muted">Lập đơn, ghi chẩn đoán và theo dõi hướng dẫn dùng thuốc.</div>
     </div>
 </div>
+
+@if (canEdit)
+{
+    <div class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>@(Model.Form.IsEditing ? "Cập nhật đơn thuốc" : "Kê đơn từ lịch hẹn")</h2>
+            </div>
+        </div>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="All" class="alert alert-danger"></div>
+        }
+
+        <form asp-action="SavePrescription" method="post">
+            @Html.AntiForgeryToken()
+            <input asp-for="Form.Id" type="hidden" />
+            @if (Model.IsDoctor)
+            {
+                <input asp-for="Form.PatientId" type="hidden" />
+                <input asp-for="Form.DoctorId" type="hidden" />
+            }
+
+            <div class="form-grid">
+                <select asp-for="Form.AppointmentId" class="form-select">
+                    <option value="">Chọn lịch hẹn</option>
+                    @foreach (var appointment in Model.AvailableAppointments)
+                    {
+                        <option value="@appointment.Id">
+                            @appointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm") - @appointment.Patient?.FullName - @appointment.Doctor?.FullName
+                        </option>
+                    }
+                </select>
+
+                @if (Model.SelectedAppointment is not null)
+                {
+                    <div class="wide alert alert-info">
+                        #@Model.SelectedAppointment.Id - @Model.SelectedAppointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm") - @Model.SelectedAppointment.Patient?.FullName
+                    </div>
+                }
+
+                @if (Model.SelectedPatient is not null)
+                {
+                    <div class="wide alert @(string.IsNullOrWhiteSpace(Model.SelectedPatient.AllergyNotes) ? "alert-secondary" : "alert-warning")">
+                        <strong>Dị ứng:</strong>
+                        @(string.IsNullOrWhiteSpace(Model.SelectedPatient.AllergyNotes) ? "Chưa có cảnh báo dị ứng." : Model.SelectedPatient.AllergyNotes)
+                    </div>
+                }
+
+                @if (!Model.IsDoctor)
+                {
+                    <select asp-for="Form.PatientId" class="form-select">
+                        @foreach (var patient in Model.Patients)
+                        {
+                            <option value="@patient.Id">@patient.FullName</option>
+                        }
+                    </select>
+                    <select asp-for="Form.DoctorId" class="form-select">
+                        @foreach (var doctor in Model.Doctors)
+                        {
+                            <option value="@doctor.Id">@doctor.FullName</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input class="form-control" value="@Model.CurrentDoctor?.FullName" readonly />
+                    <input class="form-control" value="@(Model.SelectedPatient?.FullName ?? "Bệnh nhân từ lịch hẹn")" readonly />
+                }
+
+                <input asp-for="Form.Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+                <textarea asp-for="Form.Instructions" class="form-control wide" rows="3" placeholder="Dặn dò thêm cho bệnh nhân"></textarea>
+            </div>
+
+            <div class="table-responsive mt-3">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Thuốc</th>
+                            <th>Số lượng</th>
+                            <th>Liều dùng</th>
+                            <th>Đường dùng</th>
+                            <th>Hướng dẫn sử dụng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Form.Items.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                <select asp-for="Form.Items[i].MedicineId" class="form-select">
+                                    <option value="">Chọn thuốc</option>
+                                    @foreach (var medicine in Model.Medicines)
+                                    {
+                                        <option value="@medicine.Id">@medicine.Name (@medicine.QuantityInStock @medicine.Unit)</option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <input asp-for="Form.Items[i].Quantity" class="form-control" type="number" min="0" />
+                            </td>
+                            <td>
+                                <input asp-for="Form.Items[i].Dosage" class="form-control" placeholder="Ví dụ: 1 viên x 2 lần/ngày" />
+                            </td>
+                            <td>
+                                <input asp-for="Form.Items[i].Route" class="form-control" placeholder="Ví dụ: Uống / Súc họng" />
+                            </td>
+                            <td>
+                                <input asp-for="Form.Items[i].UsageInstruction" class="form-control" placeholder="Ví dụ: Sau ăn sáng và tối" />
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" type="submit">@(Model.Form.IsEditing ? "Lưu cập nhật" : "Lưu đơn thuốc")</button>
+                @if (Model.Form.IsEditing)
+                {
+                    <a class="btn btn-outline-primary" asp-action="Prescriptions">Kê đơn mới</a>
+                }
+            </div>
+        </form>
+    </div>
+}
 
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Lập đơn thuốc</h2>
-            <p>Thông tin đơn thuốc sẽ được dùng cho dược sĩ cấp phát.</p>
+            <h2>Kiểm tra tồn kho và an toàn thuốc</h2>
         </div>
     </div>
-    <form asp-action="AddPrescription" method="post" class="form-grid">
-        <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
-        <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
-        <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
-        <input name="TotalAmount" type="number" class="form-control" placeholder="Tổng tiền" />
-        <textarea name="Instructions" class="form-control wide" placeholder="Hướng dẫn sử dụng"></textarea>
-        <button class="btn btn-primary">Lưu đơn thuốc</button>
-    </form>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Thuốc</th>
+                    <th>Tồn kho</th>
+                    <th>Hạn dùng</th>
+                    <th>Đơn giá</th>
+                    <th>Ghi chú</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var medicine in Model.MedicineChecks)
+            {
+                <tr>
+                    <td><strong>@medicine.Name</strong></td>
+                    <td>@medicine.QuantityInStock @medicine.Unit</td>
+                    <td>@medicine.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                    <td>@medicine.UnitPrice.ToString("N0") &#273;</td>
+                    <td>
+                        <span class="badge @(medicine.IsExpired || medicine.HasAllergyWarning ? "bg-danger" : medicine.IsLowStock ? "bg-warning text-dark" : "bg-success")">
+                            @medicine.Note
+                        </span>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <div class="panel">
     <div class="panel-head">
         <div>
             <h2>Danh sách đơn thuốc</h2>
-            <p>@Model.Count đơn thuốc đã lập.</p>
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table">
-            <thead><tr><th>Ngày lập</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Chẩn đoán</th><th>Hướng dẫn</th><th>Tổng tiền</th></tr></thead>
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Ngày lập</th>
+                    <th>Lịch hẹn</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bác sĩ</th>
+                    <th>Chẩn đoán</th>
+                    <th>Thuốc chi tiết</th>
+                    <th>Tổng tiền</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
             <tbody>
-            @foreach (var x in Model)
+            @foreach (var prescription in Model.Prescriptions)
             {
-                <tr><td>@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td><td><strong>@x.Patient?.FullName</strong></td><td>@x.Doctor?.FullName</td><td>@x.Diagnosis</td><td>@x.Instructions</td><td>@x.TotalAmount.ToString("N0") &#273;</td></tr>
+                <tr>
+                    <td>@prescription.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>
+                        @if (prescription.AppointmentId.HasValue && prescription.Appointment is not null)
+                        {
+                            <span>#@prescription.AppointmentId - @prescription.Appointment.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Chưa gắn lịch hẹn</span>
+                        }
+                    </td>
+                    <td><strong>@prescription.Patient?.FullName</strong></td>
+                    <td>@prescription.Doctor?.FullName</td>
+                    <td>
+                        <div><strong>@prescription.Diagnosis</strong></div>
+                        <div class="text-muted">@prescription.Instructions</div>
+                    </td>
+                    <td>
+                        @if (prescription.Details.Count == 0)
+                        {
+                            <span class="text-muted">Chưa có thuốc chi tiết</span>
+                        }
+                        else
+                        {
+                            foreach (var detail in prescription.Details)
+                            {
+                                <div class="mb-2">
+                                    <strong>@detail.Medicine?.Name</strong>
+                                    - @detail.Quantity @detail.Medicine?.Unit
+                                    <br />
+                                    <span class="text-muted">@detail.Dosage | @detail.Route | @detail.UsageInstruction</span>
+                                </div>
+                            }
+                        }
+                    </td>
+                    <td>@prescription.TotalAmount.ToString("N0") &#273;</td>
+                    <td>
+                        @if (canEdit)
+                        {
+                            <div class="d-flex flex-column gap-2">
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Prescriptions" asp-route-editId="@prescription.Id">Sửa</a>
+                                <form asp-action="DeletePrescription" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@prescription.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Dược sĩ theo dõi cấp phát</span>
+                        }
+                    </td>
+                </tr>
             }
             </tbody>
         </table>

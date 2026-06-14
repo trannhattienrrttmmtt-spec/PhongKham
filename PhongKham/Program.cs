@@ -6,12 +6,14 @@ using PhongKham.Repositories;
 using PhongKham.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+var databaseRuntimeState = new DatabaseRuntimeState();
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+builder.Services.AddSingleton(databaseRuntimeState);
 builder.Services.AddDbContext<ClinicDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ClinicDatabase")));
 builder.Services
@@ -27,8 +29,13 @@ builder.Services
     .AddDefaultTokenProviders();
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.Cookie.Name = "PhongKham.Auth.v2";
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
+});
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromDays(3650);
 });
 builder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -43,11 +50,14 @@ using (var scope = app.Services.CreateScope())
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         db.Database.EnsureCreated();
+        await ClinicSchemaUpdater.EnsureLatestSchemaAsync(db);
         await ClinicSeeder.SeedAsync(db, userManager, roleManager);
+        databaseRuntimeState.MarkAvailable();
     }
-    catch
+    catch (Exception ex)
     {
         // The UI can still start so the connection string can be fixed from configuration.
+        databaseRuntimeState.MarkUnavailable(ex.GetBaseException().Message);
     }
 }
 

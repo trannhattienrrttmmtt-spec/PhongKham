@@ -7,7 +7,37 @@ BEGIN
 END
 GO
 
+IF SUSER_ID(N'phongkham_app') IS NULL
+BEGIN
+    CREATE LOGIN [phongkham_app]
+        WITH PASSWORD = N'PhongKham@Dev123',
+             CHECK_POLICY = OFF,
+             CHECK_EXPIRATION = OFF;
+END
+GO
+
 USE [PhongKhamFullDb];
+GO
+
+IF DATABASE_PRINCIPAL_ID(N'phongkham_app') IS NULL
+BEGIN
+    CREATE USER [phongkham_app] FOR LOGIN [phongkham_app];
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.database_role_members AS drm
+    INNER JOIN sys.database_principals AS role_principal
+        ON role_principal.principal_id = drm.role_principal_id
+    INNER JOIN sys.database_principals AS member_principal
+        ON member_principal.principal_id = drm.member_principal_id
+    WHERE role_principal.name = N'db_owner'
+      AND member_principal.name = N'phongkham_app'
+)
+BEGIN
+    ALTER ROLE [db_owner] ADD MEMBER [phongkham_app];
+END
 GO
 
 IF OBJECT_ID(N'[dbo].[AspNetRoles]', N'U') IS NULL
@@ -131,6 +161,7 @@ BEGIN
         [Phone] nvarchar(20) NOT NULL DEFAULT N'',
         [Address] nvarchar(220) NOT NULL DEFAULT N'',
         [InsuranceCode] nvarchar(120) NOT NULL DEFAULT N'',
+        [AllergyNotes] nvarchar(500) NOT NULL DEFAULT N'',
         CONSTRAINT [PK_Patients] PRIMARY KEY ([Id])
     );
     CREATE INDEX [IX_Patients_Phone] ON [dbo].[Patients] ([Phone]);
@@ -144,10 +175,41 @@ BEGIN
         [FullName] nvarchar(120) NOT NULL,
         [Specialty] nvarchar(120) NOT NULL DEFAULT N'',
         [Phone] nvarchar(20) NOT NULL DEFAULT N'',
+        [AccountEmail] nvarchar(256) NOT NULL DEFAULT N'',
         [Status] nvarchar(80) NOT NULL DEFAULT N'Đang làm việc',
         CONSTRAINT [PK_Doctors] PRIMARY KEY ([Id])
     );
     CREATE INDEX [IX_Doctors_Phone] ON [dbo].[Doctors] ([Phone]);
+    CREATE UNIQUE INDEX [IX_Doctors_AccountEmail] ON [dbo].[Doctors] ([AccountEmail]) WHERE [AccountEmail] IS NOT NULL AND [AccountEmail] <> N'';
+END
+GO
+
+IF COL_LENGTH(N'[dbo].[Patients]', N'AllergyNotes') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Patients]
+    ADD [AllergyNotes] nvarchar(500) NOT NULL
+        CONSTRAINT [DF_Patients_AllergyNotes] DEFAULT N'';
+END
+GO
+
+IF COL_LENGTH(N'[dbo].[Doctors]', N'AccountEmail') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Doctors]
+    ADD [AccountEmail] nvarchar(256) NOT NULL
+        CONSTRAINT [DF_Doctors_AccountEmail] DEFAULT N'';
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'[dbo].[Doctors]')
+      AND name = N'IX_Doctors_AccountEmail'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_Doctors_AccountEmail]
+        ON [dbo].[Doctors] ([AccountEmail])
+        WHERE [AccountEmail] IS NOT NULL AND [AccountEmail] <> N'';
 END
 GO
 
@@ -206,6 +268,7 @@ IF OBJECT_ID(N'[dbo].[Prescriptions]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[Prescriptions] (
         [Id] int IDENTITY(1,1) NOT NULL,
+        [AppointmentId] int NULL,
         [PatientId] int NOT NULL,
         [DoctorId] int NOT NULL,
         [CreatedAt] datetime2 NOT NULL,
@@ -213,9 +276,11 @@ BEGIN
         [Instructions] nvarchar(500) NOT NULL DEFAULT N'',
         [TotalAmount] decimal(18,2) NOT NULL DEFAULT 0,
         CONSTRAINT [PK_Prescriptions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_Prescriptions_Appointments_AppointmentId] FOREIGN KEY ([AppointmentId]) REFERENCES [dbo].[Appointments] ([Id]),
         CONSTRAINT [FK_Prescriptions_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients] ([Id]) ON DELETE CASCADE,
         CONSTRAINT [FK_Prescriptions_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [dbo].[Doctors] ([Id]) ON DELETE CASCADE
     );
+    CREATE INDEX [IX_Prescriptions_AppointmentId] ON [dbo].[Prescriptions] ([AppointmentId]);
     CREATE INDEX [IX_Prescriptions_DoctorId] ON [dbo].[Prescriptions] ([DoctorId]);
     CREATE INDEX [IX_Prescriptions_PatientId] ON [dbo].[Prescriptions] ([PatientId]);
 END
@@ -225,6 +290,7 @@ IF OBJECT_ID(N'[dbo].[MedicalRecords]', N'U') IS NULL
 BEGIN
     CREATE TABLE [dbo].[MedicalRecords] (
         [Id] int IDENTITY(1,1) NOT NULL,
+        [AppointmentId] int NULL,
         [PatientId] int NOT NULL,
         [DoctorId] int NOT NULL,
         [VisitDate] datetime2 NOT NULL,
@@ -232,11 +298,75 @@ BEGIN
         [Diagnosis] nvarchar(500) NOT NULL DEFAULT N'',
         [TreatmentPlan] nvarchar(500) NOT NULL DEFAULT N'',
         CONSTRAINT [PK_MedicalRecords] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_MedicalRecords_Appointments_AppointmentId] FOREIGN KEY ([AppointmentId]) REFERENCES [dbo].[Appointments] ([Id]),
         CONSTRAINT [FK_MedicalRecords_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [dbo].[Patients] ([Id]) ON DELETE CASCADE,
         CONSTRAINT [FK_MedicalRecords_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [dbo].[Doctors] ([Id]) ON DELETE CASCADE
     );
+    CREATE UNIQUE INDEX [IX_MedicalRecords_AppointmentId] ON [dbo].[MedicalRecords] ([AppointmentId]) WHERE [AppointmentId] IS NOT NULL;
     CREATE INDEX [IX_MedicalRecords_DoctorId] ON [dbo].[MedicalRecords] ([DoctorId]);
     CREATE INDEX [IX_MedicalRecords_PatientId] ON [dbo].[MedicalRecords] ([PatientId]);
+END
+GO
+
+IF COL_LENGTH(N'[dbo].[Prescriptions]', N'AppointmentId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Prescriptions]
+    ADD [AppointmentId] int NULL;
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'[dbo].[Prescriptions]')
+      AND name = N'IX_Prescriptions_AppointmentId'
+)
+BEGIN
+    CREATE INDEX [IX_Prescriptions_AppointmentId] ON [dbo].[Prescriptions] ([AppointmentId]);
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_Prescriptions_Appointments_AppointmentId'
+)
+BEGIN
+    ALTER TABLE [dbo].[Prescriptions]
+    ADD CONSTRAINT [FK_Prescriptions_Appointments_AppointmentId]
+        FOREIGN KEY ([AppointmentId]) REFERENCES [dbo].[Appointments] ([Id]);
+END
+GO
+
+IF COL_LENGTH(N'[dbo].[MedicalRecords]', N'AppointmentId') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[MedicalRecords]
+    ADD [AppointmentId] int NULL;
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'[dbo].[MedicalRecords]')
+      AND name = N'IX_MedicalRecords_AppointmentId'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_MedicalRecords_AppointmentId]
+        ON [dbo].[MedicalRecords] ([AppointmentId])
+        WHERE [AppointmentId] IS NOT NULL;
+END
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_MedicalRecords_Appointments_AppointmentId'
+)
+BEGIN
+    ALTER TABLE [dbo].[MedicalRecords]
+    ADD CONSTRAINT [FK_MedicalRecords_Appointments_AppointmentId]
+        FOREIGN KEY ([AppointmentId]) REFERENCES [dbo].[Appointments] ([Id]);
 END
 GO
 
@@ -505,6 +635,59 @@ BEGIN
     INSERT INTO [dbo].[MedicalRecords] ([PatientId], [DoctorId], [VisitDate], [Symptoms], [Diagnosis], [TreatmentPlan]) VALUES
     (1, 1, GETDATE(), N'Mệt mỏi, đau đầu', N'Suy nhược nhẹ', N'Nghỉ ngơi, bổ sung vitamin'),
     (2, 2, GETDATE(), N'Ho, sốt 38.5', N'Viêm họng cấp', N'Thuốc kháng viêm và theo dõi');
+END
+GO
+
+UPDATE [dbo].[Doctors]
+SET [AccountEmail] = N'bacsi@phongkham.local'
+WHERE [Id] = 1
+  AND ISNULL([AccountEmail], N'') = N'';
+GO
+
+UPDATE [dbo].[Patients]
+SET [AllergyNotes] = N'Dị ứng với Amoxicillin'
+WHERE [Id] = 2
+  AND ISNULL([AllergyNotes], N'') = N'';
+GO
+
+UPDATE [dbo].[MedicalRecords]
+SET [AppointmentId] = 1
+WHERE [Id] = 1
+  AND [AppointmentId] IS NULL;
+GO
+
+UPDATE [dbo].[MedicalRecords]
+SET [AppointmentId] = 2
+WHERE [Id] = 2
+  AND [AppointmentId] IS NULL;
+GO
+
+UPDATE [dbo].[Prescriptions]
+SET [AppointmentId] = 2
+WHERE [Id] = 1
+  AND [AppointmentId] IS NULL;
+GO
+
+UPDATE [dbo].[Prescriptions]
+SET [AppointmentId] = 3
+WHERE [Id] = 2
+  AND [AppointmentId] IS NULL;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM [dbo].[PrescriptionDetails])
+   AND EXISTS (SELECT 1 FROM [dbo].[Prescriptions] WHERE [Id] = 1)
+   AND EXISTS (SELECT 1 FROM [dbo].[Medicines] WHERE [Id] = 1)
+BEGIN
+    INSERT INTO [dbo].[PrescriptionDetails] ([PrescriptionId], [MedicineId], [Quantity], [Dosage], [Route], [UsageInstruction], [UnitPrice], [LineTotal]) VALUES
+    (1, 1, 15, N'1 viên khi sốt', N'Đường uống', N'Mỗi 6 giờ nếu sốt trên 38 độ', 1200, 18000);
+
+    IF EXISTS (SELECT 1 FROM [dbo].[Prescriptions] WHERE [Id] = 2)
+       AND EXISTS (SELECT 1 FROM [dbo].[Medicines] WHERE [Id] = 3)
+    BEGIN
+        INSERT INTO [dbo].[PrescriptionDetails] ([PrescriptionId], [MedicineId], [Quantity], [Dosage], [Route], [UsageInstruction], [UnitPrice], [LineTotal]) VALUES
+        (2, 1, 10, N'1 viên x 2 lần/ngày', N'Đường uống', N'Sau ăn sáng và tối', 1200, 12000),
+        (2, 3, 3, N'1 chai x 3 lần/ngày', N'Súc họng', N'Sau khi đánh răng', 9000, 27000);
+    END
 END
 GO
 

@@ -17,6 +17,8 @@ public class Patient
     public string Address { get; set; } = "";
     [StringLength(120)]
     public string InsuranceCode { get; set; } = "";
+    [StringLength(500)]
+    public string AllergyNotes { get; set; } = "";
 }
 
 public class Doctor
@@ -28,6 +30,8 @@ public class Doctor
     public string Specialty { get; set; } = "";
     [StringLength(20)]
     public string Phone { get; set; } = "";
+    [StringLength(256)]
+    public string AccountEmail { get; set; } = "";
     [StringLength(80)]
     public string Status { get; set; } = "Đang làm việc";
 }
@@ -76,6 +80,8 @@ public class Medicine
 public class Prescription
 {
     public int Id { get; set; }
+    public int? AppointmentId { get; set; }
+    public Appointment? Appointment { get; set; }
     public int PatientId { get; set; }
     public Patient? Patient { get; set; }
     public int DoctorId { get; set; }
@@ -86,11 +92,14 @@ public class Prescription
     [StringLength(500)]
     public string Instructions { get; set; } = "";
     public decimal TotalAmount { get; set; }
+    public List<PrescriptionDetail> Details { get; set; } = [];
 }
 
 public class MedicalRecord
 {
     public int Id { get; set; }
+    public int? AppointmentId { get; set; }
+    public Appointment? Appointment { get; set; }
     public int PatientId { get; set; }
     public Patient? Patient { get; set; }
     public int DoctorId { get; set; }
@@ -122,6 +131,7 @@ public class ClinicDashboardViewModel
     public int Doctors { get; set; }
     public int AppointmentsToday { get; set; }
     public int LowStockMedicines { get; set; }
+    public int PrescriptionsCount { get; set; }
     public decimal RevenueThisMonth { get; set; }
     public List<Appointment> UpcomingAppointments { get; set; } = [];
 }

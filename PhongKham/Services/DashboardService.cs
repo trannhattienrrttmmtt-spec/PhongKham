@@ -17,6 +17,7 @@ public class DashboardService(ClinicDbContext db) : IDashboardService
             Doctors = await db.Doctors.CountAsync(),
             AppointmentsToday = await db.Appointments.CountAsync(x => x.AppointmentTime.Date == today),
             LowStockMedicines = await db.Medicines.CountAsync(x => x.QuantityInStock < 30),
+            PrescriptionsCount = await db.Prescriptions.CountAsync(),
             RevenueThisMonth = await db.Appointments.Where(x => x.AppointmentTime >= monthStart).SumAsync(x => x.Fee)
                 + await db.Prescriptions.Where(x => x.CreatedAt >= monthStart).SumAsync(x => x.TotalAmount),
             UpcomingAppointments = await db.Appointments.Include(x => x.Patient).Include(x => x.Doctor)

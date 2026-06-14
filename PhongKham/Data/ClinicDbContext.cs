@@ -48,11 +48,32 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
 
         modelBuilder.Entity<Patient>().HasIndex(x => x.Phone);
         modelBuilder.Entity<Doctor>().HasIndex(x => x.Phone);
+        modelBuilder.Entity<Doctor>().HasIndex(x => x.AccountEmail).IsUnique().HasFilter("[AccountEmail] IS NOT NULL AND [AccountEmail] <> N''");
         modelBuilder.Entity<Appointment>().HasIndex(x => x.AppointmentTime);
+        modelBuilder.Entity<MedicalRecord>().HasIndex(x => x.AppointmentId).IsUnique().HasFilter("[AppointmentId] IS NOT NULL");
+        modelBuilder.Entity<Prescription>().HasIndex(x => x.AppointmentId);
         modelBuilder.Entity<Room>().HasIndex(x => x.RoomNumber).IsUnique();
         modelBuilder.Entity<Specialty>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Medicine>().HasIndex(x => x.Name);
         modelBuilder.Entity<Invoice>().HasIndex(x => x.InvoiceCode).IsUnique();
+
+        modelBuilder.Entity<MedicalRecord>()
+            .HasOne(x => x.Appointment)
+            .WithMany()
+            .HasForeignKey(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Prescription>()
+            .HasOne(x => x.Appointment)
+            .WithMany()
+            .HasForeignKey(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        modelBuilder.Entity<Prescription>()
+            .HasMany(x => x.Details)
+            .WithOne(x => x.Prescription)
+            .HasForeignKey(x => x.PrescriptionId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Room>()
             .ToTable(t => t.HasCheckConstraint("CK_Room_OccupiedBeds", "[OccupiedBeds] <= [Capacity]"));
