@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Phòng Khám An Tâm</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PhongKham.styles.css" asp-append-version="true" />
+</head>
+<body class="@(User.Identity?.IsAuthenticated == true && User.IsInRole("DuocSi") ? "pharmacist-mode" : "")">
+@if (User.Identity?.IsAuthenticated == true)
+{
+    <div class="app-frame">
+        <aside class="clinic-sidebar">
+            <button class="brand-block brand-info-trigger" type="button" data-clinic-info>
+                <span class="brand-mark">+</span>
+                <span>
+                    <strong>An Tam Clinic</strong>
+                    <small>Quản lý phòng khám</small>
+                </span>
+            </button>
+            <nav class="side-nav">
+                <a asp-controller="Clinic" asp-action="Dashboard"><span>TC</span>Trang chủ</a>
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("LeTan"))
+                {
+                    <a asp-controller="Clinic" asp-action="Patients"><span>BN</span>Bệnh nhân</a>
+                }
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Clinic" asp-action="Doctors"><span>BS</span>Bác sĩ</a>
+                    <a asp-controller="Clinic" asp-action="Rooms"><span>PB</span>Phòng bệnh</a>
+                }
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("BenhNhan") || User.IsInRole("LeTan"))
+                {
+                    <a asp-controller="Clinic" asp-action="Appointments"><span>LH</span>Lịch hẹn</a>
+                }
+                @if (User.IsInRole("Admin") || User.IsInRole("DuocSi"))
+                {
+                    <a asp-controller="Clinic" asp-action="Medicines"><span>KT</span>Kho thuốc</a>
+                    <a asp-controller="Clinic" asp-action="InventoryReceipts"><span>PN</span>Phiếu nhập kho</a>
+                    <a asp-controller="Clinic" asp-action="InventoryLots"><span>LO</span>Lô thuốc</a>
+                    <a asp-controller="Clinic" asp-action="InventoryTransactions"><span>LS</span>Lịch sử kho</a>
+                    <a asp-controller="Clinic" asp-action="ExpiryAlerts"><span>HH</span>Cảnh báo hết hạn</a>
+                    <a asp-controller="Clinic" asp-action="AuditLogs"><span>NK</span>Nhật ký thao tác</a>
+                }
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi") || User.IsInRole("DuocSi"))
+                {
+                    <a asp-controller="Clinic" asp-action="Prescriptions"><span>DT</span>Đơn thuốc</a>
+                }
+                @if (User.IsInRole("Admin") || User.IsInRole("BacSi"))
+                {
+                    <a asp-controller="Clinic" asp-action="MedicalRecords"><span>BA</span>Bệnh án</a>
+                }
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-controller="Clinic" asp-action="Revenue"><span>BC</span>Doanh thu</a>
+                    <a asp-controller="Clinic" asp-action="Users"><span>TK</span>Tai khoan</a>
+                }
+            </nav>
+            <div class="sidebar-status">
+                <span class="status-dot"></span>
+                Sẵn sàng tiếp nhận
+            </div>
+        </aside>
+
+        <div class="content-frame">
+            <header class="topbar">
+                <div>
+                    <span class="eyebrow">An Tam Clinic</span>
+                    <strong>@ViewData["Title"]</strong>
+                </div>
+                <form asp-controller="Account" asp-action="Logout" method="post" class="operator-chip logout-chip">
+                    <span>@User.Identity.Name</span>
+                    <strong>
+                        @(User.IsInRole("Admin") ? "Admin" :
+                          User.IsInRole("BacSi") ? "Bác sĩ" :
+                          User.IsInRole("DuocSi") ? "Dược sĩ" :
+                          User.IsInRole("BenhNhan") ? "Bệnh nhân" : "Người dùng")
+                    </strong>
+                    <button type="submit">Đăng xuất</button>
+                </form>
+            </header>
+
+            <main role="main" class="app-shell">
+                @if (TempData["DatabaseWarning"] is string databaseWarning)
+                {
+                    <div class="alert alert-warning database-alert">@databaseWarning</div>
+                }
+                @RenderBody()
+            </main>
+        </div>
+    </div>
+}
+else
+{
+    <div class="public-frame">
+        <header class="public-nav">
+            <button class="public-brand brand-info-trigger" type="button" data-clinic-info>
+                <span class="brand-mark">+</span>
+                <span>
+                    <strong>An Tam Clinic</strong>
+                    <small>Chăm sóc sức khỏe mỗi ngày</small>
+                </span>
+            </button>
+            <nav>
+                <a asp-controller="Home" asp-action="Index">Giới thiệu</a>
+                <a asp-controller="Account" asp-action="Login">Đăng nhập</a>
+                <a class="btn btn-primary" asp-controller="Account" asp-action="Register">Đăng ký khám</a>
+            </nav>
+        </header>
+        <main role="main" class="public-shell">
+            @RenderBody()
+        </main>
+    </div>
+}
+
+<div class="modal fade" id="clinicInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content clinic-info-modal">
+            <div class="modal-header">
+                <div>
+                    <span class="eyebrow">Thông tin phòng khám</span>
+                    <h5 class="modal-title">An Tam Clinic</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div class="clinic-info-grid">
+                    <div>
+                        <span>Tên phòng khám</span>
+                        <strong>An Tam Clinic</strong>
+                    </div>
+                    <div>
+                        <span>Địa chỉ</span>
+                        <strong>123 Nguyễn Văn Linh, Quận 7, TP.HCM</strong>
+                    </div>
+                    <div>
+                        <span>Số điện thoại</span>
+                        <strong>Hotline: 0901 234 567</strong>
+                    </div>
+                    <div>
+                        <span>Email</span>
+                        <strong>contact@antamclinic.local</strong>
+                    </div>
+                    <div>
+                        <span>Giờ làm việc</span>
+                        <strong>Thứ 2 - Chủ nhật, 7:00 - 20:00</strong>
+                    </div>
+                    <div>
+                        <span>Chuyên khoa</span>
+                        <strong>Nội tổng quát, Nhi khoa, Tim mạch, Da liễu</strong>
+                    </div>
+                    <div class="wide">
+                        <span>Mô tả</span>
+                        <strong>Phòng khám đa khoa tập trung vào khám nhanh, quản lý hồ sơ rõ ràng và cấp thuốc an toàn.</strong>
+                    </div>
+                    <div>
+                        <span>Người quản lý</span>
+                        <strong>Quản trị hệ thống / Chủ phòng khám</strong>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

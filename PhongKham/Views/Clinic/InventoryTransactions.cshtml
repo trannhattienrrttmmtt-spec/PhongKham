@@ -1,0 +1,70 @@
+@model List<InventoryTransaction>
+@{
+    ViewData["Title"] = "Lịch sử nhập xuất kho";
+    var importCount = Model.Count(x => x.Quantity > 0);
+    var exportCount = Model.Count(x => x.Quantity < 0);
+    var netQuantity = Model.Sum(x => x.Quantity);
+}
+
+<div class="page-title pharmacist-page-title">
+    <div>
+        <span class="eyebrow">Kho dược</span>
+        <h1>Lịch sử nhập xuất kho</h1>
+        <div class="text-muted">Dòng thời gian nhập kho, cấp thuốc và biến động tồn.</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" asp-action="InventoryReceipts">Tạo phiếu nhập</a>
+    </div>
+</div>
+
+<section class="pharmacy-command-grid medicine-kpis">
+    <div class="pharmacy-stat accent-green"><span>Lượt nhập</span><strong>@importCount</strong><small>Giao dịch cộng kho</small></div>
+    <div class="pharmacy-stat accent-rose"><span>Lượt xuất</span><strong>@exportCount</strong><small>Cấp thuốc/trừ kho</small></div>
+    <div class="pharmacy-stat accent-blue"><span>Chênh lệch</span><strong>@netQuantity</strong><small>Tổng số lượng</small></div>
+    <div class="pharmacy-stat accent-teal"><span>Giao dịch</span><strong>@Model.Count</strong><small>Gần đây</small></div>
+</section>
+
+<section class="panel pharmacy-panel">
+    <div class="panel-head pharmacy-toolbar-head">
+        <div>
+            <h2>Biến động kho</h2>
+            <p>Lọc nhanh theo thuốc, mã tham chiếu hoặc loại giao dịch.</p>
+        </div>
+        <div class="pharmacy-toolbar">
+            <input id="transactionSearch" class="form-control" placeholder="Tìm thuốc, mã phiếu, người thao tác" />
+            <select id="transactionFilter" class="form-select">
+                <option value="all">Tất cả</option>
+                <option value="import">Nhập kho</option>
+                <option value="export">Xuất kho</option>
+            </select>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table pharmacy-table">
+            <thead>
+                <tr>
+                    <th>Thời gian</th>
+                    <th>Thuốc</th>
+                    <th>Loại</th>
+                    <th>Số lượng</th>
+                    <th>Tham chiếu</th>
+                    <th>Người thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                var state = item.Quantity >= 0 ? "import" : "export";
+                <tr data-transaction-row data-state="@state" data-search="@($"{item.Medicine?.Name} {item.TransactionType} {item.ReferenceCode} {item.CreatedBy}")">
+                    <td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><strong>@(item.Medicine?.Name ?? "Thuốc")</strong></td>
+                    <td><span class="@(state == "import" ? "badge-soft" : "badge-hot")">@(state == "import" ? "Nhập kho" : "Xuất kho")</span></td>
+                    <td><strong>@(item.Quantity > 0 ? "+" : "")@item.Quantity</strong></td>
+                    <td>@item.ReferenceCode</td>
+                    <td>@item.CreatedBy</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

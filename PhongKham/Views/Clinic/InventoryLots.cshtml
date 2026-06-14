@@ -1,0 +1,82 @@
+@model List<InventoryLot>
+@{
+    ViewData["Title"] = "Lo thuoc";
+    var activeLots = Model.Count(x => x.QuantityRemaining > 0 && !x.IsClosed);
+    var expiring = Model.Count(x => x.QuantityRemaining > 0 && x.ExpiryDate <= DateTime.Today.AddMonths(3));
+    var expired = Model.Count(x => x.QuantityRemaining > 0 && x.ExpiryDate.Date < DateTime.Today);
+}
+
+<div class="page-title pharmacist-page-title">
+    <div>
+        <span class="eyebrow">Kho duoc</span>
+        <h1>Quan ly lo thuoc</h1>
+        <div class="text-muted">Theo doi so lo, han dung va ton con lai de cap thuoc theo lo gan het han truoc.</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-outline-primary" asp-action="InventoryReceipts">Phieu nhap kho</a>
+        <a class="btn btn-primary" asp-action="Prescriptions">Cap thuoc</a>
+    </div>
+</div>
+
+<section class="pharmacy-command-grid medicine-kpis">
+    <div class="pharmacy-stat accent-teal"><span>Lo con ton</span><strong>@activeLots</strong><small>Dang co the xuat</small></div>
+    <div class="pharmacy-stat accent-amber"><span>Sap het han</span><strong>@expiring</strong><small>Trong 3 thang</small></div>
+    <div class="pharmacy-stat accent-rose"><span>Da het han</span><strong>@expired</strong><small>Khong cap phat</small></div>
+    <div class="pharmacy-stat accent-blue"><span>Tong lo</span><strong>@Model.Count</strong><small>Da ghi nhan</small></div>
+</section>
+
+<section class="panel pharmacy-panel">
+    <div class="panel-head pharmacy-toolbar-head">
+        <div>
+            <h2>Danh sach lo nhap</h2>
+            <p>Lo co han gan nhat duoc uu tien tru truoc khi xac nhan cap thuoc.</p>
+        </div>
+        <div class="pharmacy-toolbar">
+            <input id="lotSearch" class="form-control" placeholder="Tim thuoc, so lo, ma phieu" />
+            <select id="lotFilter" class="form-select">
+                <option value="all">Tat ca</option>
+                <option value="active">Con ton</option>
+                <option value="expiring">Sap het han</option>
+                <option value="expired">Da het han</option>
+                <option value="closed">Da het</option>
+            </select>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table pharmacy-table">
+            <thead>
+                <tr>
+                    <th>So lo</th>
+                    <th>Thuoc</th>
+                    <th>Phieu nhap</th>
+                    <th>Nhap</th>
+                    <th>Con</th>
+                    <th>Han dung</th>
+                    <th>Trang thai</th>
+                    <th>Nguoi nhap</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var lot in Model)
+            {
+                var isExpired = lot.ExpiryDate.Date < DateTime.Today;
+                var isExpiring = !isExpired && lot.ExpiryDate <= DateTime.Today.AddMonths(3);
+                var isClosed = lot.IsClosed || lot.QuantityRemaining <= 0;
+                var state = isClosed ? "closed" : isExpired ? "expired" : isExpiring ? "expiring" : "active";
+                var badge = isClosed ? "badge-soft" : isExpired ? "badge-critical" : isExpiring ? "badge-warn" : "badge-soft";
+                var label = isClosed ? "Da het" : isExpired ? "Da het han" : isExpiring ? "Sap het han" : "Con ton";
+                <tr data-lot-row data-state="@state" data-search="@($"{lot.BatchNumber} {lot.ReceiptCode} {lot.Medicine?.Name}")">
+                    <td><strong>@lot.BatchNumber</strong></td>
+                    <td>@(lot.Medicine?.Name ?? "Thuoc")</td>
+                    <td>@lot.ReceiptCode</td>
+                    <td>@lot.QuantityReceived</td>
+                    <td><strong>@lot.QuantityRemaining</strong></td>
+                    <td>@lot.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                    <td><span class="@badge">@label</span></td>
+                    <td>@lot.CreatedBy</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>

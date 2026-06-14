@@ -1,0 +1,44 @@
+@model List<Patient>
+<div class="panel">
+    <div class="panel-head">
+        <h2>Danh sach benh nhan</h2>
+        <span class="badge badge-soft">@Model.Count ho so</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Ho ten</th>
+                    <th>Gioi tinh</th>
+                    <th>Ngay sinh</th>
+                    <th>Dien thoai</th>
+                    <th>BHYT</th>
+                    <th>Dia chi</th>
+                    <th>Thao tac</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <form asp-action="UpdatePatient" method="post">
+                        <input type="hidden" name="Id" value="@item.Id" />
+                        <td><input name="FullName" value="@item.FullName" class="form-control form-control-sm" required /></td>
+                        <td>
+                            <select name="Gender" class="form-select form-select-sm">
+                                <option selected="@(item.Gender == "Nam")">Nam</option>
+                                <option selected="@(item.Gender != "Nam")">Nu</option>
+                            </select>
+                        </td>
+                        <td><input name="DateOfBirth" type="date" value="@item.DateOfBirth.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></td>
+                        <td><input name="Phone" value="@item.Phone" class="form-control form-control-sm" /></td>
+                        <td><input name="InsuranceCode" value="@item.InsuranceCode" class="form-control form-control-sm" /></td>
+                        <td><input name="Address" value="@item.Address" class="form-control form-control-sm" /></td>
+                        <td><button class="btn btn-outline-primary btn-sm">Luu</button></td>
+                    </form>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

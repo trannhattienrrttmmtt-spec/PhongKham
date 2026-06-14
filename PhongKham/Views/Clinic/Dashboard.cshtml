@@ -1,0 +1,247 @@
+﻿@model ClinicDashboardViewModel
+@{
+    ViewData["Title"] = "Trang chủ";
+    var isAdmin = User.IsInRole("Admin");
+    var isDoctor = User.IsInRole("BacSi");
+    var isPharmacist = User.IsInRole("DuocSi");
+    var isPatient = User.IsInRole("BenhNhan");
+    var roleName = isAdmin ? "quản trị viên" :
+        isDoctor ? "bác sĩ" :
+        isPharmacist ? "dược sĩ" :
+        isPatient ? "bệnh nhân" : "người dùng";
+    var pendingPrescriptions = ViewBag.PendingPrescriptions as List<Prescription> ?? [];
+    var pendingPrescriptionCount = ViewBag.PendingPrescriptionCount as int? ?? pendingPrescriptions.Count;
+    var dispensedPrescriptionCount = ViewBag.DispensedPrescriptionCount as int? ?? 0;
+    var rejectedPrescriptionCount = ViewBag.RejectedPrescriptionCount as int? ?? 0;
+    var expiringMedicines = ViewBag.ExpiringMedicines as List<Medicine> ?? [];
+}
+
+@if (isPharmacist)
+{
+    <section class="pharmacy-hero">
+        <div>
+            <span class="eyebrow">Quầy dược</span>
+            <h1>Bảng điều phối cấp thuốc</h1>
+            <p>Theo dõi đơn đang chờ, kiểm tra tồn kho và chuyển nhanh sang khu vực xử lý đơn thuốc.</p>
+        </div>
+        <div class="pharmacy-hero-actions">
+            <a class="btn btn-primary" asp-action="Prescriptions">Mở hàng đợi đơn</a>
+            <a class="btn btn-outline-primary" asp-action="Medicines">Kiểm tra kho</a>
+        </div>
+    </section>
+
+    <div class="pharmacy-command-grid">
+        <div class="pharmacy-stat accent-amber">
+            <span>Thuốc dưới ngưỡng</span>
+            <strong>@Model.LowStockMedicines</strong>
+            <small>Cần rà soát nhập bổ sung</small>
+        </div>
+        <div class="pharmacy-stat accent-green">
+            <span>Đơn trong hàng đợi</span>
+            <strong>@pendingPrescriptionCount</strong>
+            <small>Trạng thái Chờ cấp</small>
+        </div>
+        <div class="pharmacy-stat accent-blue">
+            <span>Đã cấp</span>
+            <strong>@dispensedPrescriptionCount</strong>
+            <small>Đã trừ tồn kho</small>
+        </div>
+        <div class="pharmacy-stat accent-rose">
+            <span>Từ chối</span>
+            <strong>@rejectedPrescriptionCount</strong>
+            <small>Đơn có vấn đề</small>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="panel pharmacy-panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Hàng đợi cấp thuốc</h2>
+                    <p>Các đơn thuốc trạng thái Chờ cấp để dược sĩ kiểm tra và chuẩn bị thuốc.</p>
+                </div>
+                <a asp-action="Prescriptions">Mở đơn thuốc</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle pharmacy-table queue-table">
+                    <thead><tr><th>Mã đơn</th><th>Ngày kê</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Số loại thuốc</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in pendingPrescriptions)
+                    {
+                        <tr>
+                            <td><strong>DT@item.Id.ToString("000")</strong></td>
+                            <td>@item.CreatedAt.ToString("dd/MM/yyyy")</td>
+                            <td><strong>@item.Patient?.FullName</strong></td>
+                            <td>@item.Doctor?.FullName</td>
+                            <td>@(item.Details?.Count ?? 0)</td>
+                            <td><span class="badge badge-warn">Chờ cấp</span></td>
+                            <td><a class="btn btn-primary btn-sm" asp-action="Prescriptions">Xem / Cấp thuốc</a></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <aside class="panel compact-panel pharmacy-rail">
+            <div class="panel-head">
+                <div>
+                    <h2>Thuốc sắp hết hạn</h2>
+                    <p>Ưu tiên kiểm tra trước khi cấp phát.</p>
+                </div>
+            </div>
+            <div class="ops-list expiry-home-list">
+                @if (expiringMedicines.Any())
+                {
+                    @foreach (var medicine in expiringMedicines)
+                    {
+                        var days = (medicine.ExpiryDate.Date - DateTime.Today).Days;
+                        <a asp-action="ExpiryAlerts">
+                            <span>@medicine.ExpiryDate.ToString("dd/MM/yyyy")</span>
+                            <strong>@medicine.Name</strong>
+                            <small>@(days < 0 ? $"Quá hạn {Math.Abs(days)} ngày" : $"Còn {days} ngày")</small>
+                        </a>
+                    }
+                }
+                else
+                {
+                    <a asp-action="ExpiryAlerts"><span>Hạn dùng</span><strong>Chưa có cảnh báo gần hạn</strong></a>
+                }
+            </div>
+            <div class="panel-head">
+                <div>
+                    <h2>Thao tác nhanh</h2>
+                    <p>Những việc dược sĩ dùng nhiều nhất trong ca trực.</p>
+                </div>
+            </div>
+            <div class="ops-list">
+                <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Kiểm tra trước khi cấp phát</strong></a>
+                <a asp-action="Medicines"><span>Kho thuốc</span><strong>Tìm thuốc, hạn dùng, tồn kho</strong></a>
+                <a asp-action="InventoryReceipts"><span>Nhập thuốc</span><strong>Tạo phiếu nhập và quản lý lô</strong></a>
+            </div>
+            <div class="pharmacy-checklist">
+                <strong>Checklist ca trực</strong>
+                <label><input type="checkbox" /> Kiểm tra thuốc sắp hết</label>
+                <label><input type="checkbox" /> Đối chiếu đơn trước khi cấp</label>
+                <label><input type="checkbox" /> Ghi chú đơn có vấn đề</label>
+            </div>
+        </aside>
+    </div>
+}
+else
+{
+    <section class="welcome-panel role-welcome">
+        <div>
+            <span class="eyebrow">Xin chào @roleName</span>
+            @if (isAdmin)
+            {
+                <h1>Bảng điều hành phòng khám</h1>
+                <p>Theo dõi nhân sự, lịch khám, kho thuốc và doanh thu trong cùng một màn hình.</p>
+            }
+            else if (isDoctor)
+            {
+                <h1>Không gian làm việc của bác sĩ</h1>
+                <p>Tập trung vào bệnh nhân, lịch khám, bệnh án và đơn thuốc cần xử lý trong ngày.</p>
+            }
+            else
+            {
+                <h1>Cổng bệnh nhân</h1>
+                <p>Đặt lịch khám, xem lịch hẹn và theo dõi thông tin khám của bạn.</p>
+            }
+        </div>
+        <div class="page-actions">
+            @if (isAdmin)
+            {
+                <a class="btn btn-primary" asp-action="Revenue">Xem doanh thu</a>
+                <a class="btn btn-outline-primary" asp-action="Doctors">Quản lý bác sĩ</a>
+            }
+            else if (isDoctor)
+            {
+                <a class="btn btn-primary" asp-action="MedicalRecords">Tạo bệnh án</a>
+                <a class="btn btn-outline-primary" asp-action="Prescriptions">Lập đơn thuốc</a>
+            }
+            else
+            {
+                <a class="btn btn-primary" asp-action="Appointments">Đặt lịch khám</a>
+            }
+        </div>
+    </section>
+
+    <div class="metric-grid friendly-metrics">
+        @if (isAdmin)
+        {
+            <div class="metric accent-teal"><span>Bệnh nhân</span><strong>@Model.Patients</strong><small>Hồ sơ đang quản lý</small></div>
+            <div class="metric accent-blue"><span>Bác sĩ</span><strong>@Model.Doctors</strong><small>Đang phục vụ</small></div>
+            <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Cần điều phối</small></div>
+            <div class="metric accent-amber"><span>Thuốc cần bổ sung</span><strong>@Model.LowStockMedicines</strong><small>Dưới mức an toàn</small></div>
+        }
+        else if (isDoctor)
+        {
+            <div class="metric accent-green"><span>Lịch khám hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Ưu tiên xử lý</small></div>
+            <div class="metric accent-teal"><span>Hồ sơ bệnh nhân</span><strong>@Model.Patients</strong><small>Tra cứu khi khám</small></div>
+            <div class="metric accent-blue"><span>Lịch gần nhất</span><strong>@Model.UpcomingAppointments.Count</strong><small>Theo danh sách hiện tại</small></div>
+        }
+        else
+        {
+            <div class="metric accent-green"><span>Lịch hẹn hôm nay</span><strong>@Model.AppointmentsToday</strong><small>Kiểm tra trước khi đến khám</small></div>
+            <div class="metric accent-teal"><span>Lịch sắp tới</span><strong>@Model.UpcomingAppointments.Count</strong><small>Các cuộc hẹn đang hiển thị</small></div>
+        }
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Lịch hẹn sắp tới</h2>
+                    <p>Danh sách gần nhất để điều phối và theo dõi trạng thái khám.</p>
+                </div>
+                <a asp-action="Appointments">Mở lịch hẹn</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead><tr><th>Thời gian</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Lý do</th><th>Trạng thái</th></tr></thead>
+                    <tbody>
+                    @foreach (var item in Model.UpcomingAppointments)
+                    {
+                        <tr>
+                            <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td><strong>@item.Patient?.FullName</strong></td>
+                            <td>@item.Doctor?.FullName</td>
+                            <td>@item.Reason</td>
+                            <td><span class="badge badge-soft">@item.Status</span></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel compact-panel">
+            <div class="panel-head">
+                <div>
+                    <h2>Việc cần làm</h2>
+                    <p>Đường tắt theo đúng vai trò đang đăng nhập.</p>
+                </div>
+            </div>
+            <div class="ops-list">
+                @if (isAdmin)
+                {
+                    <a asp-action="Rooms"><span>Phòng bệnh</span><strong>Theo dõi sức chứa</strong></a>
+                    <a asp-action="Users"><span>Tài khoản</span><strong>Quản lý người dùng</strong></a>
+                    <a asp-action="Revenue"><span>Báo cáo</span><strong>Xem doanh thu</strong></a>
+                }
+                else if (isDoctor)
+                {
+                    <a asp-action="Patients"><span>Bệnh nhân</span><strong>Tra cứu hồ sơ</strong></a>
+                    <a asp-action="MedicalRecords"><span>Bệnh án</span><strong>Ghi nhận chẩn đoán</strong></a>
+                    <a asp-action="Prescriptions"><span>Đơn thuốc</span><strong>Lập hướng dẫn dùng thuốc</strong></a>
+                }
+                else
+                {
+                    <a asp-action="Appointments"><span>Đặt lịch</span><strong>Chọn bác sĩ và thời gian khám</strong></a>
+                    <a asp-action="Appointments"><span>Lịch của tôi</span><strong>Theo dõi trạng thái hẹn khám</strong></a>
+                }
+            </div>
+        </div>
+    </div>
+}

@@ -1,0 +1,82 @@
+@model List<Appointment>
+@{
+    ViewData["Title"] = "Lịch hẹn";
+    var patients = (List<Patient>)ViewBag.Patients;
+    var doctors = (List<Doctor>)ViewBag.Doctors;
+    var isPatient = User.IsInRole("BenhNhan");
+    var isDoctor = User.IsInRole("BacSi");
+    var isAdmin = User.IsInRole("Admin");
+}
+
+<div class="page-title">
+    <div>
+        <h1>@(isPatient ? "Lịch khám của tôi" : isDoctor ? "Lịch khám hôm nay" : "Quản lý lịch hẹn")</h1>
+        <div class="text-muted">
+            @(isPatient
+                ? "Đặt lịch và theo dõi trạng thái cuộc hẹn của bạn."
+                : isDoctor
+                    ? "Theo dõi danh sách bệnh nhân đã đặt lịch khám."
+                    : "Đặt lịch, theo dõi trạng thái và điều phối bệnh nhân đến khám.")
+        </div>
+    </div>
+</div>
+
+@if (!isDoctor)
+{
+    <div class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>@(isPatient ? "Đặt lịch khám" : "Đặt lịch mới")</h2>
+                <p>@(isPatient ? "Chọn bác sĩ, thời gian và ghi ngắn gọn lý do khám." : "Chọn bệnh nhân, bác sĩ và thời gian phù hợp.")</p>
+            </div>
+        </div>
+        <form asp-action="AddAppointment" method="post" class="form-grid">
+            @if (isPatient)
+            {
+                <select name="PatientId" class="form-select" hidden>
+                    @foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}
+                </select>
+            }
+            else
+            {
+                <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+            }
+            <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName - @d.Specialty</option>}</select>
+            <input name="AppointmentTime" type="datetime-local" class="form-control" />
+            @if (isAdmin)
+            {
+                <input name="Fee" type="number" class="form-control" placeholder="Phí khám" value="150000" />
+                <select name="Status" class="form-select"><option>Đã đặt lịch</option><option>Đã xác nhận</option><option>Đang chờ</option><option>Hoàn tất</option><option>Hủy</option></select>
+            }
+            <input name="Reason" class="form-control wide" placeholder="Lý do khám" />
+            <button class="btn btn-primary">@(isPatient ? "Gửi lịch hẹn" : "Lưu lịch hẹn")</button>
+        </form>
+    </div>
+}
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>@(isPatient ? "Lịch hẹn của tôi" : "Danh sách lịch hẹn")</h2>
+            <p>@Model.Count lịch hẹn đang được ghi nhận.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Thời gian</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Lý do</th><th>Phí</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr>
+                    <td>@x.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><strong>@x.Patient?.FullName</strong></td>
+                    <td>@x.Doctor?.FullName</td>
+                    <td>@x.Reason</td>
+                    <td>@x.Fee.ToString("N0") &#273;</td>
+                    <td><span class="badge badge-soft">@x.Status</span></td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

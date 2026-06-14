@@ -1,0 +1,309 @@
+﻿@model List<Prescription>
+@{
+    ViewData["Title"] = "Đơn thuốc";
+    var patients = (List<Patient>)ViewBag.Patients;
+    var doctors = (List<Doctor>)ViewBag.Doctors;
+    var medicines = (List<Medicine>)ViewBag.Medicines;
+    var canCreatePrescription = User.IsInRole("Admin") || User.IsInRole("BacSi");
+    var canDispensePrescription = User.IsInRole("DuocSi");
+    var totalAmount = Model.Sum(x => x.TotalAmount);
+    var pendingCount = Model.Count(x => x.DispenseStatus == "Pending");
+    var dispensedCount = Model.Count(x => x.DispenseStatus == "Dispensed");
+    var rejectedCount = Model.Count(x => x.DispenseStatus == "Rejected");
+}
+
+<div class="page-title pharmacist-page-title">
+    <div>
+        <span class="eyebrow">Quầy dược</span>
+        <h1>Đơn thuốc</h1>
+        <div class="text-muted">Theo dõi đơn chờ cấp, đối chiếu thuốc và xử lý cấp phát.</div>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-primary" asp-action="Medicines">Kiểm tra kho</a>
+        @if (canDispensePrescription)
+        {
+            <button type="button" class="btn btn-outline-primary" data-focus-target="prescriptionSearch">Tìm đơn</button>
+        }
+    </div>
+</div>
+
+@if (canDispensePrescription)
+{
+    <section class="dispense-board premium-dispense-board">
+        <div>
+            <span class="eyebrow">Hàng đợi cấp phát</span>
+            <h2>Đơn chờ cấp được lưu trạng thái thật</h2>
+            <p>Dược sĩ chỉ xử lý các đơn đang chờ cấp. Đơn đã cấp hoặc từ chối sẽ giữ trạng thái sau khi tải lại trang.</p>
+        </div>
+        <div class="dispense-stats">
+            <div><strong data-status-count="pending">@pendingCount</strong><span>Chờ cấp</span></div>
+            <div><strong data-status-count="done">@dispensedCount</strong><span>Đã cấp</span></div>
+            <div><strong data-status-count="rejected">@rejectedCount</strong><span>Từ chối</span></div>
+        </div>
+    </section>
+}
+
+@if (canCreatePrescription)
+{
+    <div class="panel pharmacy-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Lập đơn thuốc</h2>
+                <p>Đơn mới sẽ tự vào trạng thái chờ cấp cho dược sĩ.</p>
+            </div>
+        </div>
+        <form asp-action="AddPrescription" method="post" class="form-grid">
+            <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+            <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
+            <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+            <input name="TotalAmount" type="number" class="form-control" placeholder="Tổng tiền, để trống để tính theo thuốc" />
+            <textarea name="Instructions" class="form-control wide" placeholder="Hướng dẫn chung"></textarea>
+            @for (var i = 0; i < 3; i++)
+            {
+                <select name="medicineIds" class="form-select">
+                    <option value="">Chọn thuốc dòng @(i + 1)</option>
+                    @foreach (var m in medicines)
+                    {
+                        <option value="@m.Id">@m.Name - @m.UnitPrice.ToString("N0") đ</option>
+                    }
+                </select>
+                <input name="quantities" type="number" min="1" value="1" class="form-control" placeholder="Số lượng" />
+                <input name="dosages" class="form-control" placeholder="Liều dùng" />
+                <input name="routes" class="form-control" placeholder="Đường dùng" value="Uống" />
+                <textarea name="usageInstructions" class="form-control wide" placeholder="Hướng dẫn dùng thuốc dòng @(i + 1)"></textarea>
+            }
+            <button class="btn btn-primary">Lưu đơn thuốc</button>
+        </form>
+    </div>
+}
+
+<div class="panel pharmacy-panel">
+    <div class="panel-head pharmacy-toolbar-head">
+        <div>
+            <h2>Danh sách đơn thuốc</h2>
+            <p>@Model.Count đơn thuốc đã lập. Tổng giá trị @totalAmount.ToString("N0") đ.</p>
+        </div>
+        @if (canDispensePrescription)
+        {
+            <div class="pharmacy-toolbar">
+                <input class="form-control" id="prescriptionSearch" placeholder="Tìm bệnh nhân, bác sĩ, chẩn đoán..." />
+                <select class="form-select" id="prescriptionFilter">
+                    <option value="all">Tất cả</option>
+                    <option value="pending">Chờ cấp</option>
+                    <option value="done">Đã cấp</option>
+                    <option value="rejected">Từ chối</option>
+                </select>
+            </div>
+        }
+    </div>
+    <div class="table-responsive">
+        <table class="table pharmacy-table" id="prescriptionTable">
+            <thead>
+                <tr>
+                    <th>Ngày lập</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bác sĩ</th>
+                    <th>Chẩn đoán</th>
+                    <th>Chi tiết thuốc</th>
+                    <th>Tổng tiền</th>
+                    @if (canDispensePrescription)
+                    {
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                var patientName = x.Patient?.FullName ?? "Chưa có bệnh nhân";
+                var doctorName = x.Doctor?.FullName ?? "Chưa có bác sĩ";
+                var detailCount = x.Details?.Count ?? 0;
+                var dispenseState = x.DispenseStatus == "Dispensed" ? "done" : x.DispenseStatus == "Rejected" ? "rejected" : "pending";
+                var dispenseLabel = x.DispenseStatus == "Dispensed" ? "Đã cấp" : x.DispenseStatus == "Rejected" ? "Từ chối" : "Chờ cấp";
+                var dispenseBadge = x.DispenseStatus == "Dispensed" ? "badge-soft" : x.DispenseStatus == "Rejected" ? "badge-hot" : "badge-warn";
+                <tr data-prescription-row data-state="@dispenseState" data-search="@($"{patientName} {doctorName} {x.Diagnosis}".ToLowerInvariant())">
+                    <td>@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td><strong>@patientName</strong><small class="row-note">Đơn #RX-@x.Id.ToString("000")</small></td>
+                    <td>@doctorName</td>
+                    <td>@x.Diagnosis</td>
+                    <td><span class="priority-chip">@detailCount thuốc</span></td>
+                    <td>@x.TotalAmount.ToString("N0") đ</td>
+                    @if (canDispensePrescription)
+                    {
+                        <td>
+                            <span class="badge @dispenseBadge" data-dispense-status>@dispenseLabel</span>
+                            @if (x.DispensedAt is not null)
+                            {
+                                <small class="row-note">@x.DispensedAt.Value.ToString("dd/MM HH:mm")</small>
+                                @if (!string.IsNullOrWhiteSpace(x.DispensedBy))
+                                {
+                                    <small class="row-note">@x.DispensedBy</small>
+                                }
+                            }
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <button type="button" class="btn btn-outline-primary btn-sm"
+                                        data-prescription-detail
+                                        data-detail-template="prescription-details-@x.Id"
+                                        data-id="@x.Id"
+                                        data-state="@dispenseState"
+                                        data-patient="@patientName"
+                                        data-doctor="@doctorName"
+                                        data-diagnosis="@x.Diagnosis"
+                                        data-instructions="@x.Instructions"
+                                        data-amount="@x.TotalAmount.ToString("N0") đ"
+                                        data-created="@x.CreatedAt.ToString("dd/MM/yyyy HH:mm")">
+                                    Xem chi tiết
+                                </button>
+                                @if (x.DispenseStatus == "Pending")
+                                {
+                                    <button type="button"
+                                            class="btn btn-primary btn-sm"
+                                            data-confirm-dispense
+                                            data-id="@x.Id"
+                                            data-patient="@patientName"
+                                            data-doctor="@doctorName"
+                                            data-diagnosis="@x.Diagnosis"
+                                            data-amount="@x.TotalAmount.ToString("N0") đ"
+                                            data-detail-template="prescription-details-@x.Id">
+                                        Cấp thuốc
+                                    </button>
+                                    <form asp-action="RejectPrescription" method="post">
+                                        <input type="hidden" name="id" value="@x.Id" />
+                                        <input type="hidden" name="note" value="Từ chối cấp thuốc" />
+                                        <button class="btn btn-outline-danger btn-sm">Từ chối</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    }
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@foreach (var x in Model)
+{
+    <template id="prescription-details-@x.Id">
+        @if (x.Details.Any())
+        {
+            <div class="table-responsive">
+                <table class="table prescription-detail-table">
+                    <thead>
+                        <tr>
+                            <th>Tên thuốc</th>
+                            <th>Đơn vị</th>
+                            <th>Số lượng kê</th>
+                            <th>Liều dùng</th>
+                            <th>Hướng dẫn</th>
+                            <th>Tồn kho</th>
+                            <th>Kết quả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                @foreach (var item in x.Details)
+                {
+                    var stock = item.Medicine?.QuantityInStock ?? 0;
+                    var isExpired = item.Medicine is null || item.Medicine.ExpiryDate.Date < DateTime.Today;
+                    var isEnough = !isExpired && stock >= item.Quantity;
+                    var resultText = isExpired ? "Hết hạn" : isEnough ? "Đủ hàng" : "Thiếu hàng";
+                    var resultBadge = isExpired ? "badge-critical" : isEnough ? "badge-soft" : "badge-hot";
+                    <tr>
+                        <td><strong>@(item.Medicine?.Name ?? "Thuốc chưa có tên")</strong></td>
+                        <td>@(item.Medicine?.Unit ?? "")</td>
+                        <td>@item.Quantity</td>
+                        <td>@item.Dosage</td>
+                        <td>@item.UsageInstruction</td>
+                        <td>@stock</td>
+                        <td><span class="@resultBadge">@resultText</span></td>
+                    </tr>
+                }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-detail">Đơn này chưa có dòng thuốc chi tiết.</div>
+        }
+    </template>
+}
+
+@if (canDispensePrescription)
+{
+    <div class="modal fade" id="prescriptionDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content prescription-modal">
+                <div class="modal-header">
+                    <div>
+                        <span class="eyebrow">Chi tiết đơn</span>
+                        <h5 class="modal-title" id="detailPatient">Đơn thuốc</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <dl class="detail-list">
+                        <div><dt>Ngày lập</dt><dd id="detailCreated"></dd></div>
+                        <div><dt>Bác sĩ</dt><dd id="detailDoctor"></dd></div>
+                        <div><dt>Chẩn đoán</dt><dd id="detailDiagnosis"></dd></div>
+                        <div><dt>Hướng dẫn chung</dt><dd id="detailInstructions"></dd></div>
+                        <div><dt>Tổng tiền</dt><dd id="detailAmount"></dd></div>
+                    </dl>
+                    <div class="prescription-detail-section">
+                        <h3>Thuốc trong đơn</h3>
+                        <div id="detailLines"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Quay lại</button>
+                    <form asp-action="RejectPrescription" method="post" class="detail-pending-action">
+                        <input type="hidden" name="id" id="detailRejectId" />
+                        <input type="hidden" name="note" value="Từ chối cấp thuốc" />
+                        <button class="btn btn-outline-danger">Từ chối cấp</button>
+                    </form>
+                    <form asp-action="DispensePrescription" method="post" class="detail-pending-action">
+                        <input type="hidden" name="id" id="detailDispenseId" />
+                        <button class="btn btn-primary">Xác nhận cấp thuốc</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="dispenseConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content prescription-modal">
+                <form asp-action="DispensePrescription" method="post">
+                    <div class="modal-header">
+                        <div>
+                        <span class="eyebrow">Xác nhận cấp thuốc</span>
+                        <h5 class="modal-title" id="confirmDispensePatient">Đơn thuốc</h5>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="confirmDispenseId" />
+                        <div class="confirm-summary">
+                            <div><small>Bác sĩ</small><strong id="confirmDispenseDoctor"></strong></div>
+                            <div><small>Chẩn đoán</small><strong id="confirmDispenseDiagnosis"></strong></div>
+                            <div><small>Tổng tiền</small><strong id="confirmDispenseAmount"></strong></div>
+                        </div>
+                        <div class="prescription-detail-section">
+                            <h3>Thuốc sẽ cấp</h3>
+                            <div class="alert alert-info database-alert">Sau khi xác nhận, hệ thống sẽ tự động trừ tồn kho theo số lượng trong đơn.</div>
+                            <div id="confirmDispenseLines"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Kiểm tra lại</button>
+                        <button class="btn btn-primary">Xác nhận cấp thuốc</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}

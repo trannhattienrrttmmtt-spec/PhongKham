@@ -1,0 +1,52 @@
+@{
+    ViewData["Title"] = "Phòng khám An Tâm";
+}
+
+<section class="hero-section">
+    <div class="hero-copy">
+        <span class="eyebrow">Phòng khám gia đình</span>
+        <h1>Đặt lịch khám nhanh, theo dõi hồ sơ rõ ràng.</h1>
+        <p>An Tâm Clinic giúp bệnh nhân đặt lịch, xem lịch sử khám và nhận đơn thuốc trong một cổng thông tin dễ dùng, gọn gàng và an toàn.</p>
+        <div class="hero-actions">
+            <a class="btn btn-primary btn-lg" asp-controller="Account" asp-action="Register">Đăng ký khám bệnh</a>
+            <a class="btn btn-outline-primary btn-lg" asp-controller="Account" asp-action="Login">Đăng nhập</a>
+        </div>
+    </div>
+    <div class="hero-card">
+        <div class="hero-card-head">
+            <span class="status-dot"></span>
+            Đang tiếp nhận hôm nay
+        </div>
+        <div class="hero-schedule">
+            <div><strong>07:30 - 11:30</strong><span>Khám sáng</span></div>
+            <div><strong>13:30 - 17:00</strong><span>Khám chiều</span></div>
+            <div><strong>24/7</strong><span>Cấp cứu</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="public-grid">
+    <article class="info-card">
+        <span>01</span>
+        <h2>Đặt lịch dễ dàng</h2>
+        <p>Bệnh nhân tạo tài khoản, chọn lịch khám và theo dõi trạng thái lịch hẹn.</p>
+    </article>
+    <article class="info-card">
+        <span>02</span>
+        <h2>Hồ sơ tập trung</h2>
+        <p>Bác sĩ và dược sĩ làm việc trên cùng một hồ sơ, giảm nhập liệu lặp lại.</p>
+    </article>
+    <article class="info-card">
+        <span>03</span>
+        <h2>Đơn thuốc minh bạch</h2>
+        <p>Dược sĩ kiểm tra kho, cấp thuốc và cập nhật lịch sử rõ ràng.</p>
+    </article>
+</section>
+
+<section class="public-band">
+    <div>
+        <span class="eyebrow">Chuyên khoa</span>
+        <h2>Nội tổng quát, nhi khoa, tim mạch và chăm sóc theo dõi định kỳ.</h2>
+    </div>
+    <a class="btn btn-primary" asp-controller="Account" asp-action="Register">Bắt đầu đặt lịch</a>
+</section>

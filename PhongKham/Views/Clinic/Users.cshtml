@@ -1,0 +1,77 @@
+@model List<UserAccount>
+@{
+    ViewData["Title"] = "Tai khoan nguoi dung";
+}
+
+<div class="page-title">
+    <div>
+        <h1>Tai khoan nguoi dung</h1>
+        <div class="text-muted">Quan ly tai khoan dang nhap that trong AspNetUsers va vai tro trong AspNetRoles.</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Them hoac cap nhat tai khoan</h2>
+            <p>Mat khau mac dinh co the de trong: Dev@123456.</p>
+        </div>
+    </div>
+    <form asp-action="AddUser" method="post" class="form-grid">
+        <input name="UserName" type="email" class="form-control" placeholder="Email dang nhap" required />
+        <input name="DisplayName" class="form-control" placeholder="Ho ten hien thi" />
+        <input name="password" type="text" class="form-control" placeholder="Mat khau tam (mac dinh Dev@123456)" />
+        <select name="Role" class="form-select">
+            <option value="Admin">Admin</option>
+            <option value="LeTan">LeTan</option>
+            <option value="BacSi">BacSi</option>
+            <option value="DuocSi">DuocSi</option>
+            <option value="BenhNhan">BenhNhan</option>
+        </select>
+        <select name="IsActive" class="form-select">
+            <option value="true">Dang kich hoat</option>
+            <option value="false">Tam khoa</option>
+        </select>
+        <button class="btn btn-primary">Luu tai khoan</button>
+    </form>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Danh sach tai khoan</h2>
+            <p>@Model.Count tai khoan dang co trong he thong.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Ten hien thi</th>
+                    <th>Vai tro</th>
+                    <th>Trang thai</th>
+                    <th>Thao tac</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr>
+                    <td><strong>@x.UserName</strong></td>
+                    <td>@x.DisplayName</td>
+                    <td><span class="priority-chip">@x.Role</span></td>
+                    <td><span class="badge @(x.IsActive ? "badge-soft" : "badge-hot")">@(x.IsActive ? "Dang kich hoat" : "Tam khoa")</span></td>
+                    <td>
+                        <form asp-action="ToggleUser" method="post" class="table-actions">
+                            <input type="hidden" name="email" value="@x.UserName" />
+                            <input type="hidden" name="isActive" value="@(!x.IsActive)" />
+                            <button class="btn btn-outline-primary btn-sm">@(x.IsActive ? "Khoa" : "Mo khoa")</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

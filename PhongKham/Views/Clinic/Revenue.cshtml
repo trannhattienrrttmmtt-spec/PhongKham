@@ -1,0 +1,103 @@
+@{
+    ViewData["Title"] = "Bao cao doanh thu";
+    var invoices = (List<Invoice>)ViewBag.Invoices;
+    var patients = (List<Patient>)ViewBag.Patients;
+}
+
+<div class="page-title">
+    <div>
+        <h1>Bao cao doanh thu</h1>
+        <div class="text-muted">Tong hop tien kham, tien thuoc, hoa don va thanh toan.</div>
+    </div>
+</div>
+
+<div class="metric-grid">
+    <div class="metric accent-blue"><span>Doanh thu kham benh</span><strong>@(((decimal)ViewBag.AppointmentRevenue).ToString("N0")) &#273;</strong></div>
+    <div class="metric accent-green"><span>Doanh thu don thuoc</span><strong>@(((decimal)ViewBag.PrescriptionRevenue).ToString("N0")) &#273;</strong></div>
+    <div class="metric accent-rose"><span>Tong doanh thu</span><strong>@(((decimal)ViewBag.TotalRevenue).ToString("N0")) &#273;</strong></div>
+    <div class="metric accent-purple"><span>Da thanh toan</span><strong>@(((decimal)ViewBag.PaidRevenue).ToString("N0")) &#273;</strong></div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Lap hoa don</h2>
+            <p>Tao hoa don rieng va ghi nhan thanh toan theo tung dot.</p>
+        </div>
+    </div>
+    <form asp-action="CreateInvoice" method="post" class="form-grid">
+        <select name="patientId" class="form-select">
+            @foreach (var p in patients)
+            {
+                <option value="@p.Id">@p.FullName</option>
+            }
+        </select>
+        <input name="examinationFee" type="number" class="form-control" placeholder="Tien kham" value="150000" />
+        <input name="medicineFee" type="number" class="form-control" placeholder="Tien thuoc" value="0" />
+        <input name="serviceFee" type="number" class="form-control" placeholder="Phi dich vu" value="0" />
+        <input name="discount" type="number" class="form-control" placeholder="Giam gia" value="0" />
+        <button class="btn btn-primary">Tao hoa don</button>
+    </form>
+</div>
+
+@if (invoices.Any())
+{
+    <div class="panel">
+        <div class="panel-head">
+            <div>
+                <h2>Hoa don</h2>
+                <p>@invoices.Count hoa don gan nhat.</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead><tr><th>Ma</th><th>Benh nhan</th><th>Tong tien</th><th>Da thu</th><th>Trang thai</th><th>Thanh toan</th></tr></thead>
+                <tbody>
+                @foreach (var invoice in invoices)
+                {
+                    var paid = invoice.Payments.Sum(x => x.Amount);
+                    <tr>
+                        <td><strong>@invoice.InvoiceCode</strong></td>
+                        <td>@invoice.Patient?.FullName</td>
+                        <td>@invoice.TotalAmount.ToString("N0") &#273;</td>
+                        <td>@paid.ToString("N0") &#273;</td>
+                        <td><span class="badge badge-soft">@invoice.PaymentStatus</span></td>
+                        <td>
+                            <form asp-action="AddPayment" method="post" class="table-actions">
+                                <input type="hidden" name="invoiceId" value="@invoice.Id" />
+                                <input name="amount" type="number" min="1" class="form-control form-control-sm" placeholder="So tien" />
+                                <select name="method" class="form-select form-select-sm"><option>Cash</option><option>Transfer</option><option>Card</option></select>
+                                <button class="btn btn-outline-primary btn-sm">Thu</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Giao dich gan day</h2>
+            <p>Cac khoan thu moi nhat duoc ghi nhan trong he thong.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Nguon</th><th>Ngay</th><th>Benh nhan</th><th>So tien</th></tr></thead>
+            <tbody>
+            @foreach (Appointment x in ViewBag.Appointments)
+            {
+                <tr><td>Phi kham</td><td>@x.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.Fee.ToString("N0") &#273;</td></tr>
+            }
+            @foreach (Prescription x in ViewBag.Prescriptions)
+            {
+                <tr><td>Don thuoc</td><td>@x.CreatedAt.ToString("dd/MM/yyyy")</td><td>@x.Patient?.FullName</td><td>@x.TotalAmount.ToString("N0") &#273;</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

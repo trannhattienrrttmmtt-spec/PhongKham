@@ -1,0 +1,50 @@
+@model List<MedicalRecord>
+@{
+    ViewData["Title"] = "Bệnh án";
+    var patients = (List<Patient>)ViewBag.Patients;
+    var doctors = (List<Doctor>)ViewBag.Doctors;
+}
+
+<div class="page-title">
+    <div>
+        <h1>Bệnh án</h1>
+        <div class="text-muted">Ghi nhận triệu chứng, chẩn đoán và phác đồ điều trị của mỗi lần khám.</div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Tạo bệnh án</h2>
+            <p>Thông tin này giúp theo dõi lịch sử điều trị của bệnh nhân.</p>
+        </div>
+    </div>
+    <form asp-action="AddMedicalRecord" method="post" class="form-grid">
+        <select name="PatientId" class="form-select">@foreach (var p in patients){<option value="@p.Id">@p.FullName</option>}</select>
+        <select name="DoctorId" class="form-select">@foreach (var d in doctors){<option value="@d.Id">@d.FullName</option>}</select>
+        <input name="Symptoms" class="form-control" placeholder="Triệu chứng" />
+        <input name="Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+        <textarea name="TreatmentPlan" class="form-control wide" placeholder="Phác đồ điều trị"></textarea>
+        <button class="btn btn-primary">Lưu bệnh án</button>
+    </form>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <div>
+            <h2>Lịch sử bệnh án</h2>
+            <p>@Model.Count hồ sơ đang được lưu trữ.</p>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead><tr><th>Ngày khám</th><th>Bệnh nhân</th><th>Bác sĩ</th><th>Triệu chứng</th><th>Chẩn đoán</th><th>Điều trị</th></tr></thead>
+            <tbody>
+            @foreach (var x in Model)
+            {
+                <tr><td>@x.VisitDate.ToString("dd/MM/yyyy HH:mm")</td><td><strong>@x.Patient?.FullName</strong></td><td>@x.Doctor?.FullName</td><td>@x.Symptoms</td><td>@x.Diagnosis</td><td>@x.TreatmentPlan</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

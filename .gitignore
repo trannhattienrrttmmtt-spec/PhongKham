@@ -1,0 +1,23 @@
+bin/
+obj/
+.vs/
+.vscode/
+.runlogs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build and runtime output
+Debug/
+Release/
+*.pid
+*.log
+
+# ASP.NET generated assets
+wwwroot/**/*.map
+!PhongKham/wwwroot/lib/**/*.map
+
+# Local database files
+*.mdf
+*.ldf
