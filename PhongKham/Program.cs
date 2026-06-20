@@ -23,8 +23,8 @@ builder.Services.AddDbContext<ClinicDbContext>(options =>
         {
             sqlOptions.CommandTimeout(60);
             sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(5),
+                maxRetryCount: 1,
+                maxRetryDelay: TimeSpan.FromSeconds(2),
                 errorNumbersToAdd: null);
         }));
 builder.Services
@@ -50,27 +50,37 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 });
 builder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddHttpClient<IAiChatService, OpenRouterAiChatService>(client =>
+{
+    client.BaseAddress = new Uri("https://openrouter.ai/api/v1/");
+    client.Timeout = TimeSpan.FromSeconds(45);
+});
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+databaseRuntimeState.MarkUnavailable("Dang kiem tra ket noi SQL Server.");
+app.Lifetime.ApplicationStarted.Register(() =>
 {
-    try
+    _ = Task.Run(async () =>
     {
-        var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        db.Database.EnsureCreated();
-        await ClinicSchemaUpdater.EnsureLatestSchemaAsync(db);
-        await ClinicSeeder.SeedAsync(db, userManager, roleManager);
-        databaseRuntimeState.MarkAvailable();
-    }
-    catch (Exception ex)
-    {
-        // The UI can still start so the connection string can be fixed from configuration.
-        databaseRuntimeState.MarkUnavailable(ex.GetBaseException().Message);
-    }
-}
+        using var scope = app.Services.CreateScope();
+        try
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ClinicDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+            await db.Database.EnsureCreatedAsync();
+            await ClinicSchemaUpdater.EnsureLatestSchemaAsync(db);
+            await ClinicSeeder.SeedAsync(db, userManager, roleManager);
+            databaseRuntimeState.MarkAvailable();
+        }
+        catch (Exception ex)
+        {
+            // The UI can still start so the connection string can be fixed from configuration.
+            databaseRuntimeState.MarkUnavailable(ex.GetBaseException().Message);
+        }
+    });
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

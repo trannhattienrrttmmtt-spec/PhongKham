@@ -1,6 +1,7 @@
 @model List<InventoryReceipt>
 @{
     ViewData["Title"] = "Phieu nhap kho";
+    ViewData["Subtitle"] = "Tao phieu nhap, tu cong ton kho va ghi lich su nhap xuat.";
     var medicines = ViewBag.Medicines as List<Medicine> ?? [];
     var totalReceipts = Model.Count;
     var totalAmount = Model.Sum(x => x.TotalAmount);
@@ -8,16 +9,9 @@
     var medicineKinds = Model.SelectMany(x => x.Details).Select(x => x.MedicineId).Distinct().Count();
 }
 
-<div class="page-title pharmacist-page-title">
-    <div>
-        <span class="eyebrow">Kho duoc</span>
-        <h1>Phieu nhap kho</h1>
-        <div class="text-muted">Tao phieu nhap, tu cong ton kho va ghi lich su nhap xuat.</div>
-    </div>
-    <div class="page-actions">
-        <a class="btn btn-outline-primary" asp-action="InventoryTransactions">Lich su kho</a>
-        <a class="btn btn-outline-primary" asp-action="InventoryLots">Lo thuoc</a>
-    </div>
+<div class="page-actions" style="margin-bottom:20px">
+    <a class="btn btn-outline-primary" asp-action="InventoryTransactions">Lich su kho</a>
+    <a class="btn btn-outline-primary" asp-action="InventoryLots">Lo thuoc</a>
 </div>
 
 <section class="pharmacy-command-grid medicine-kpis">

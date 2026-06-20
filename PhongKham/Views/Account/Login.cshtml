@@ -3,50 +3,93 @@
     ViewData["Title"] = "Đăng nhập";
 }
 
-<div class="auth-shell">
-    <div class="auth-panel">
-        <span class="eyebrow">Phòng Khám An Tâm</span>
-        <h1>Rất vui được gặp lại bạn</h1>
-        <p class="text-muted">Đăng nhập để xem lịch hẹn, hồ sơ, đơn thuốc và các công việc trong ngày.</p>
-
-        @if (ViewData["DatabaseWarning"] is string databaseWarning)
-        {
-            <div class="alert alert-warning">@databaseWarning</div>
-        }
-
-        <form asp-action="Login" method="post" class="form-grid single-column">
-            <input asp-for="ReturnUrl" type="hidden" />
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div>
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" autocomplete="username" />
-                <span asp-validation-for="Email" class="text-danger"></span>
-            </div>
-            <div>
-                <label asp-for="Password" class="form-label">Mật khẩu</label>
-                <input asp-for="Password" class="form-control" autocomplete="current-password" />
-                <span asp-validation-for="Password" class="text-danger"></span>
-            </div>
-            <label class="form-check">
-                <input asp-for="RememberMe" class="form-check-input" />
-                <span class="form-check-label">Ghi nhớ đăng nhập</span>
-            </label>
-            <button class="btn btn-primary w-100">Đăng nhập</button>
-        </form>
-
-        <div class="auth-switch">
-            Chưa có tài khoản?
-            <a asp-controller="Account" asp-action="Register">Đăng ký khám bệnh</a>
+<div class="auth-split-layout">
+    <div class="auth-visual-side">
+        <a class="auth-visual-brand" asp-controller="Home" asp-action="Index">
+            <span class="brand-mark"><i class="bi bi-hospital"></i></span>
+            <span>An Tam Clinic</span>
+        </a>
+        <div class="auth-visual-quote">
+            <h2>Chăm sóc tận tâm,<br>Đồng hành cùng sức khỏe.</h2>
+            <p>Hệ thống cổng thông tin giúp bệnh nhân đặt lịch hẹn nhanh chóng, quản lý hồ sơ bệnh án số và đơn thuốc điện tử an toàn.</p>
         </div>
+        <div class="auth-visual-footer">
+            © 2026 An Tâm Clinic. Bảo lưu mọi quyền.
+        </div>
+    </div>
+    
+    <div class="auth-form-side">
+        <div class="auth-form-container">
+            <span class="eyebrow">Hệ thống quản lý</span>
+            <h1>Rất vui được gặp lại</h1>
+            <p>Đăng nhập để xem lịch hẹn, hồ sơ bệnh án hoặc thực hiện công việc điều phối phòng khám.</p>
 
-        <div class="dev-account">
-            <strong>Tài khoản Development</strong>
-            <span>admin@phongkham.local / Dev@123456</span>
-            <span>bacsi@phongkham.local / Dev@123456</span>
+            <form asp-action="Login" method="post" class="form-grid single-column">
+                <input asp-for="ReturnUrl" type="hidden" />
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                
+                <div class="auth-input-group">
+                    <input asp-for="Email" class="form-control" placeholder="Địa chỉ email" autocomplete="username" />
+                    <i class="bi bi-envelope"></i>
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                
+                <div class="auth-input-group">
+                    <input asp-for="Password" class="form-control" type="password" placeholder="Mật khẩu" autocomplete="current-password" />
+                    <i class="bi bi-lock"></i>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <label class="form-check m-0">
+                        <input asp-for="RememberMe" class="form-check-input" />
+                        <span class="form-check-label text-muted">Ghi nhớ đăng nhập</span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-100">Đăng nhập tài khoản</button>
+            </form>
+
+            <div class="auth-switch">
+                Bạn là bệnh nhân mới? 
+                <a asp-controller="Account" asp-action="Register">Đăng ký khám bệnh</a>
+            </div>
+
+            <div class="dev-account-box">
+                <strong>Tài khoản thử nghiệm (Click để điền nhanh)</strong>
+                <div class="dev-chips-grid">
+                    <div class="dev-chip" data-email="admin@phongkham.local" data-pass="Dev@123456">
+                        <span class="chip-label"><i class="bi bi-shield-lock-fill"></i> Admin</span>
+                        <span class="chip-email">admin@phongkham.local</span>
+                    </div>
+                    <div class="dev-chip" data-email="bacsi@phongkham.local" data-pass="Dev@123456">
+                        <span class="chip-label"><i class="bi bi-person-heart"></i> Bác sĩ</span>
+                        <span class="chip-email">bacsi@phongkham.local</span>
+                    </div>
+                    <div class="dev-chip" data-email="duocsi@phongkham.local" data-pass="Dev@123456">
+                        <span class="chip-label"><i class="bi bi-capsule"></i> Dược sĩ</span>
+                        <span class="chip-email">duocsi@phongkham.local</span>
+                    </div>
+                    <div class="dev-chip" data-email="benhnhan@phongkham.local" data-pass="Dev@123456">
+                        <span class="chip-label"><i class="bi bi-person-fill"></i> Bệnh nhân</span>
+                        <span class="chip-email">benhnhan@phongkham.local</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelectorAll('.dev-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const email = chip.getAttribute('data-email');
+                const pass = chip.getAttribute('data-pass');
+                document.querySelector('input[name="Email"]').value = email;
+                document.querySelector('input[name="Password"]').value = pass;
+            });
+        });
+    </script>
 }

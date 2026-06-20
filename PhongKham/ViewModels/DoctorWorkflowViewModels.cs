@@ -59,11 +59,11 @@ public class PrescriptionFormViewModel
     public int PatientId { get; set; }
     public int DoctorId { get; set; }
 
-    [Required]
+    [Required(ErrorMessage = "Vui lòng nhập chẩn đoán.")]
     [StringLength(500)]
     public string Diagnosis { get; set; } = "";
 
-    [Required]
+    [Required(ErrorMessage = "Vui lòng nhập dặn dò cho bệnh nhân.")]
     [StringLength(500)]
     public string Instructions { get; set; } = "";
 
@@ -78,13 +78,13 @@ public class PrescriptionItemInputViewModel
     public int Quantity { get; set; }
 
     [StringLength(120)]
-    public string Dosage { get; set; } = "";
+    public string? Dosage { get; set; }
 
     [StringLength(120)]
-    public string Route { get; set; } = "";
+    public string? Route { get; set; }
 
     [StringLength(240)]
-    public string UsageInstruction { get; set; } = "";
+    public string? UsageInstruction { get; set; }
 
     public bool HasInput =>
         MedicineId.HasValue

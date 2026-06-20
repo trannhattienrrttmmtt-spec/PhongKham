@@ -1,16 +1,10 @@
 @{
     ViewData["Title"] = "Báo cáo doanh thu";
+    ViewData["Subtitle"] = "Tổng hợp tiền khám, tiền thuốc và giao dịch gần đây.";
     var invoices = (List<Invoice>)ViewBag.Invoices;
     var from = (DateTime)ViewBag.From;
     var to = (DateTime)ViewBag.To;
 }
-
-<div class="page-title">
-    <div>
-        <h1>Báo cáo doanh thu</h1>
-        <div class="text-muted">Tổng hợp tiền khám, tiền thuốc và giao dịch gần đây.</div>
-    </div>
-</div>
 
 <div class="panel compact-panel">
     <form asp-action="Revenue" method="get" class="admin-filter-bar">

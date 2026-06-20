@@ -1,22 +1,16 @@
-﻿@model PhongKham.ViewModels.PrescriptionsPageViewModel
+@model PhongKham.ViewModels.PrescriptionsPageViewModel
 @{
-    ViewData["Title"] = "ÄÆ¡n thuá»‘c";
+    ViewData["Title"] = "Đơn thuốc";
     var canEdit = User.IsInRole("Admin") || User.IsInRole("BacSi");
     var canDispense = User.IsInRole("Admin") || User.IsInRole("DuocSi");
 }
-
-<div class="page-title">
-    <div>
-        <h1>ÄÆ¡n thuá»‘c</h1>
-    </div>
-</div>
 
 @if (canEdit)
 {
     <div class="panel">
         <div class="panel-head">
             <div>
-                <h2>@(Model.Form.IsEditing ? "Cáº­p nháº­t Ä‘Æ¡n thuá»‘c" : "KÃª Ä‘Æ¡n tá»« lá»‹ch háº¹n")</h2>
+                <h2>@(Model.Form.IsEditing ? "Cập nhật đơn thuốc" : "Kê đơn từ lịch hẹn")</h2>
             </div>
         </div>
 
@@ -36,7 +30,7 @@
 
             <div class="form-grid">
                 <select asp-for="Form.AppointmentId" class="form-select">
-                    <option value="">Chá»n lá»‹ch háº¹n</option>
+                    <option value="">Chọn lịch hẹn</option>
                     @foreach (var appointment in Model.AvailableAppointments)
                     {
                         <option value="@appointment.Id">
@@ -55,8 +49,8 @@
                 @if (Model.SelectedPatient is not null)
                 {
                     <div class="wide alert @(string.IsNullOrWhiteSpace(Model.SelectedPatient.AllergyNotes) ? "alert-secondary" : "alert-warning")">
-                        <strong>Dá»‹ á»©ng:</strong>
-                        @(string.IsNullOrWhiteSpace(Model.SelectedPatient.AllergyNotes) ? "ChÆ°a cÃ³ cáº£nh bÃ¡o dá»‹ á»©ng." : Model.SelectedPatient.AllergyNotes)
+                        <strong>Dị ứng:</strong>
+                        @(string.IsNullOrWhiteSpace(Model.SelectedPatient.AllergyNotes) ? "Chưa có cảnh báo dị ứng." : Model.SelectedPatient.AllergyNotes)
                     </div>
                 }
 
@@ -78,22 +72,22 @@
                 else
                 {
                     <input class="form-control" value="@Model.CurrentDoctor?.FullName" readonly />
-                    <input class="form-control" value="@(Model.SelectedPatient?.FullName ?? "Bá»‡nh nhÃ¢n tá»« lá»‹ch háº¹n")" readonly />
+                    <input class="form-control" value="@(Model.SelectedPatient?.FullName ?? "Bệnh nhân từ lịch hẹn")" readonly />
                 }
 
-                <input asp-for="Form.Diagnosis" class="form-control" placeholder="Cháº©n Ä‘oÃ¡n" />
-                <textarea asp-for="Form.Instructions" class="form-control wide" rows="3" placeholder="Dáº·n dÃ² thÃªm cho bá»‡nh nhÃ¢n"></textarea>
+                <input asp-for="Form.Diagnosis" class="form-control" placeholder="Chẩn đoán" />
+                <textarea asp-for="Form.Instructions" class="form-control wide" rows="3" placeholder="Dặn dò thêm cho bệnh nhân"></textarea>
             </div>
 
             <div class="table-responsive mt-3">
                 <table class="table align-middle">
                     <thead>
                         <tr>
-                            <th>Thuá»‘c</th>
-                            <th>Sá»‘ lÆ°á»£ng</th>
-                            <th>Liá»u dÃ¹ng</th>
-                            <th>ÄÆ°á»ng dÃ¹ng</th>
-                            <th>HÆ°á»›ng dáº«n sá»­ dá»¥ng</th>
+                            <th>Thuốc</th>
+                            <th>Số lượng</th>
+                            <th>Liều dùng</th>
+                            <th>Đường dùng</th>
+                            <th>Hướng dẫn sử dụng</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -102,7 +96,7 @@
                         <tr>
                             <td>
                                 <select asp-for="Form.Items[i].MedicineId" class="form-select">
-                                    <option value="">Chá»n thuá»‘c</option>
+                                    <option value="">Chọn thuốc</option>
                                     @foreach (var medicine in Model.Medicines)
                                     {
                                         <option value="@medicine.Id">@medicine.Name (@medicine.QuantityInStock @medicine.Unit)</option>
@@ -113,13 +107,13 @@
                                 <input asp-for="Form.Items[i].Quantity" class="form-control" type="number" min="0" />
                             </td>
                             <td>
-                                <input asp-for="Form.Items[i].Dosage" class="form-control" placeholder="VÃ­ dá»¥: 1 viÃªn x 2 láº§n/ngÃ y" />
+                                <input asp-for="Form.Items[i].Dosage" class="form-control" placeholder="Ví dụ: 1 viên x 2 lần/ngày" />
                             </td>
                             <td>
-                                <input asp-for="Form.Items[i].Route" class="form-control" placeholder="VÃ­ dá»¥: Uá»‘ng / SÃºc há»ng" />
+                                <input asp-for="Form.Items[i].Route" class="form-control" placeholder="Ví dụ: Uống / Súc họng" />
                             </td>
                             <td>
-                                <input asp-for="Form.Items[i].UsageInstruction" class="form-control" placeholder="VÃ­ dá»¥: Sau Äƒn sÃ¡ng vÃ  tá»‘i" />
+                                <input asp-for="Form.Items[i].UsageInstruction" class="form-control" placeholder="Ví dụ: Sau ăn sáng và tối" />
                             </td>
                         </tr>
                     }
@@ -128,10 +122,10 @@
             </div>
 
             <div class="d-flex gap-2">
-                <button class="btn btn-primary" type="submit">@(Model.Form.IsEditing ? "LÆ°u cáº­p nháº­t" : "LÆ°u Ä‘Æ¡n thuá»‘c")</button>
+                <button class="btn btn-primary" type="submit">@(Model.Form.IsEditing ? "Lưu cập nhật" : "Lưu đơn thuốc")</button>
                 @if (Model.Form.IsEditing)
                 {
-                    <a class="btn btn-outline-primary" asp-action="Prescriptions">KÃª Ä‘Æ¡n má»›i</a>
+                    <a class="btn btn-outline-primary" asp-action="Prescriptions">Kê đơn mới</a>
                 }
             </div>
         </form>
@@ -141,18 +135,18 @@
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Kiá»ƒm tra tá»“n kho vÃ  an toÃ n thuá»‘c</h2>
+            <h2>Kiểm tra tồn kho và an toàn thuốc</h2>
         </div>
     </div>
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
                 <tr>
-                    <th>Thuá»‘c</th>
-                    <th>Tá»“n kho</th>
-                    <th>Háº¡n dÃ¹ng</th>
-                    <th>ÄÆ¡n giÃ¡</th>
-                    <th>Ghi chÃº</th>
+                    <th>Thuốc</th>
+                    <th>Tồn kho</th>
+                    <th>Hạn dùng</th>
+                    <th>Đơn giá</th>
+                    <th>Ghi chú</th>
                 </tr>
             </thead>
             <tbody>
@@ -178,21 +172,22 @@
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Danh sÃ¡ch Ä‘Æ¡n thuá»‘c</h2>
+            <h2>Danh sách đơn thuốc</h2>
         </div>
     </div>
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
                 <tr>
-                    <th>NgÃ y láº­p</th>
-                    <th>Lá»‹ch háº¹n</th>
-                    <th>Bá»‡nh nhÃ¢n</th>
-                    <th>BÃ¡c sÄ©</th>
-                    <th>Cháº©n Ä‘oÃ¡n</th>
-                    <th>Thuá»‘c chi tiáº¿t</th>
-                    <th>Tá»•ng tiá»n</th>
-                    <th>Thao tÃ¡c</th>
+                    <th>Ngày lập</th>
+                    <th>Lịch hẹn</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bác sĩ</th>
+                    <th>Chẩn đoán</th>
+                    <th>Thuốc chi tiết</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái cấp</th>
+                    <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
@@ -207,7 +202,7 @@
                         }
                         else
                         {
-                            <span class="text-muted">ChÆ°a gáº¯n lá»‹ch háº¹n</span>
+                            <span class="text-muted">Chưa gắn lịch hẹn</span>
                         }
                     </td>
                     <td><strong>@prescription.Patient?.FullName</strong></td>
@@ -219,7 +214,7 @@
                     <td>
                         @if (prescription.Details.Count == 0)
                         {
-                            <span class="text-muted">ChÆ°a cÃ³ thuá»‘c chi tiáº¿t</span>
+                            <span class="text-muted">Chưa có thuốc chi tiết</span>
                         }
                         else
                         {
@@ -238,24 +233,26 @@
                     <td>
                         @{
                             var statusLabel = prescription.DispenseStatus == "Dispensed"
-                                ? "Da cap"
+                                ? "Đã cấp"
                                 : prescription.DispenseStatus == "Rejected"
-                                    ? "Tu choi"
-                                    : "Cho cap";
+                                    ? "Từ chối"
+                                    : "Chờ cấp";
                         }
                         <span class="badge @(prescription.DispenseStatus == "Rejected" ? "bg-danger" : prescription.DispenseStatus == "Dispensed" ? "bg-success" : "bg-warning text-dark")">@statusLabel</span>
                         @if (prescription.DispensedAt is not null)
                         {
                             <div class="text-muted">@prescription.DispensedAt.Value.ToString("dd/MM HH:mm")</div>
                         }
+                    </td>
+                    <td>
                         <div class="d-flex flex-column gap-2">
                             @if (canEdit)
                             {
-                                <a class="btn btn-sm btn-outline-primary" asp-action="Prescriptions" asp-route-editId="@prescription.Id">Sua</a>
+                                <a class="btn btn-sm btn-outline-primary" asp-action="Prescriptions" asp-route-editId="@prescription.Id">Sửa</a>
                                 <form asp-action="DeletePrescription" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@prescription.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Xoa</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
                                 </form>
                             }
                             @if (canDispense && prescription.DispenseStatus == "Pending")
@@ -263,18 +260,18 @@
                                 <form asp-action="DispensePrescription" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@prescription.Id" />
-                                    <button type="submit" class="btn btn-sm btn-primary">Cap thuoc</button>
+                                    <button type="submit" class="btn btn-sm btn-primary">Cấp thuốc</button>
                                 </form>
                                 <form asp-action="RejectPrescription" method="post">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@prescription.Id" />
-                                    <input type="hidden" name="note" value="Tu choi cap thuoc" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Tu choi</button>
+                                    <input type="hidden" name="note" value="Từ chối cấp thuốc" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Từ chối</button>
                                 </form>
                             }
                             @if (!canEdit && (!canDispense || prescription.DispenseStatus != "Pending"))
                             {
-                                <span class="text-muted">Duoc si theo doi cap phat</span>
+                                <span class="text-muted">Dược sĩ theo dõi cấp phát</span>
                             }
                         </div>
                     </td>

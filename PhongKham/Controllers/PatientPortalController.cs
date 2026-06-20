@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PhongKham.Data;
 using PhongKham.Models;
+using PhongKham.Services;
 using PhongKham.ViewModels;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -16,7 +17,8 @@ namespace PhongKham.Controllers;
 public class PatientPortalController(
     ClinicDbContext db,
     UserManager<ApplicationUser> userManager,
-    SignInManager<ApplicationUser> signInManager) : Controller
+    SignInManager<ApplicationUser> signInManager,
+    IAiChatService aiChatService) : Controller
 {
     public Task<IActionResult> Home() => Portal("Home");
     public Task<IActionResult> Profile() => Portal("Profile");
@@ -56,7 +58,7 @@ public class PatientPortalController(
     {
         var model = await BuildModel("EditAppointment");
         model.Appointment = model.Appointments.FirstOrDefault(x => x.Id == id);
-        if (model.Appointment is null || !CanEditAppointment(model.Appointment))
+        if (model.Appointment is null || !CanEditPatientAppointment(model.Appointment))
         {
             TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
             return RedirectToAction(nameof(Appointments));
@@ -84,7 +86,7 @@ public class PatientPortalController(
             return RedirectToAction(nameof(Profile));
         }
 
-        var (user, patient) = await GetCurrentAsync();
+        var (user, patient) = await GetCurrentPortalAsync();
         user.FullName = input.FullName;
         user.PhoneNumber = input.Phone;
         patient.FullName = input.FullName;
@@ -128,7 +130,7 @@ public class PatientPortalController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CreateAppointment(int doctorId, DateTime appointmentDate, string appointmentTime, string symptoms)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         if (appointmentDate.Date < DateTime.Today || !await db.Doctors.AnyAsync(x => x.Id == doctorId))
         {
             TempData["PortalError"] = "Ngày khám hoặc bác sĩ không hợp lệ.";
@@ -144,7 +146,7 @@ public class PatientPortalController(
             time = new TimeOnly(8, 0);
         }
         var scheduledAt = appointmentDate.Date.Add(time.ToTimeSpan());
-        if (await HasDoctorConflictAsync(doctorId, scheduledAt))
+        if (await HasActiveDoctorConflictAsync(doctorId, scheduledAt))
         {
             TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
             return RedirectToAction(nameof(Book), new { doctorId });
@@ -182,9 +184,9 @@ public class PatientPortalController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateAppointment(AppointmentEditInput input)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == input.Id && x.PatientId == patient.Id);
-        if (appointment is null || !CanEditAppointment(appointment))
+        if (appointment is null || !CanEditPatientAppointment(appointment))
         {
             TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
             return RedirectToAction(nameof(Appointments));
@@ -198,7 +200,7 @@ public class PatientPortalController(
         }
 
         var scheduledAt = input.AppointmentDate.Date.Add(time.ToTimeSpan());
-        if (await HasDoctorConflictAsync(input.DoctorId, scheduledAt, appointment.Id))
+        if (await HasActiveDoctorConflictAsync(input.DoctorId, scheduledAt, appointment.Id))
         {
             TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
             return RedirectToAction(nameof(EditAppointment), new { id = input.Id });
@@ -216,7 +218,7 @@ public class PatientPortalController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> CancelAppointment(int id)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == id && x.PatientId == patient.Id);
         if (appointment is not null && appointment.Status != "Hoàn tất")
         {
@@ -236,7 +238,7 @@ public class PatientPortalController(
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> PayInvoice(int? invoiceId, string method)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         if (!new[] { "BankQR", "Cash" }.Contains(method))
         {
             TempData["PortalError"] = "Phương thức thanh toán không hợp lệ.";
@@ -307,7 +309,7 @@ public class PatientPortalController(
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendChatMessage(string message, IFormFile? image)
+    public async Task<IActionResult> SendChatMessage(string message, IFormFile? image, CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return Challenge();
@@ -331,7 +333,8 @@ public class PatientPortalController(
             imageUrl = $"/uploads/chat/{fileName}";
         }
 
-        if (!string.IsNullOrWhiteSpace(message) || !string.IsNullOrWhiteSpace(imageUrl))
+        var patientMessage = message?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(patientMessage) || !string.IsNullOrWhiteSpace(imageUrl))
         {
             db.AuditLogs.Add(new AuditLog
             {
@@ -339,16 +342,39 @@ public class PatientPortalController(
                 Action = "PatientMessage",
                 EntityName = "PatientChat",
                 CreatedAt = DateTime.Now,
-                Description = $"{message.Trim()}\n{imageUrl}".Trim()
+                Description = LimitAuditDescription($"{patientMessage}\n{imageUrl}".Trim())
             });
             await db.SaveChangesAsync();
+
+            if (!string.IsNullOrWhiteSpace(patientMessage))
+            {
+                var recentMessages = await db.AuditLogs.AsNoTracking()
+                    .Where(x => x.UserId == user.Id && x.EntityName == "PatientChat")
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Take(12)
+                    .OrderBy(x => x.CreatedAt)
+                    .ToListAsync(cancellationToken);
+
+                var aiMessages = BuildAiMessages(user.FullName, recentMessages);
+                var aiReply = await aiChatService.GetReplyAsync(aiMessages, cancellationToken);
+
+                db.AuditLogs.Add(new AuditLog
+                {
+                    UserId = user.Id,
+                    Action = "AiReply",
+                    EntityName = "PatientChat",
+                    CreatedAt = DateTime.Now,
+                    Description = LimitAuditDescription(aiReply)
+                });
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
         return RedirectToAction(nameof(Chat));
     }
 
     public async Task<IActionResult> DownloadMedicalReport(int? id)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         var records = await db.MedicalRecords.Include(x => x.Doctor)
             .Where(x => x.PatientId == patient.Id && (!id.HasValue || x.Id == id))
             .OrderByDescending(x => x.VisitDate).ToListAsync();
@@ -373,7 +399,7 @@ public class PatientPortalController(
 
     public async Task<IActionResult> DownloadPrescriptionPdf(int id)
     {
-        var (_, patient) = await GetCurrentAsync();
+        var (_, patient) = await GetCurrentPortalAsync();
         var prescription = await db.Prescriptions.Include(x => x.Doctor)
             .FirstOrDefaultAsync(x => x.Id == id && x.PatientId == patient.Id);
         if (prescription is null) return NotFound();
@@ -438,7 +464,7 @@ public class PatientPortalController(
 
     private async Task<PatientPortalViewModel> BuildModel(string page)
     {
-        var (user, patient) = await GetCurrentAsync();
+        var (user, patient) = await GetCurrentPortalAsync();
         var model = new PatientPortalViewModel
         {
             Page = page,
@@ -493,7 +519,7 @@ public class PatientPortalController(
         }
         if (page == "Notifications")
         {
-            await EnsureDefaultNotificationsAsync(user);
+            await EnsurePortalNotificationsAsync(user);
             model.Notifications = await db.Notifications.AsNoTracking()
                 .Where(x => x.UserId == user.Id || x.UserId == "")
                 .OrderByDescending(x => x.CreatedAt).ToListAsync();
@@ -511,6 +537,96 @@ public class PatientPortalController(
         }
 
         return model;
+    }
+
+    private async Task<(ApplicationUser User, Patient Patient)> GetCurrentPortalAsync()
+    {
+        var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("Khong tim thay tai khoan.");
+        var patient = !string.IsNullOrWhiteSpace(user.PhoneNumber)
+            ? await db.Patients.FirstOrDefaultAsync(x => x.Phone == user.PhoneNumber)
+            : null;
+
+        patient ??= await db.Patients.FirstOrDefaultAsync(x => x.FullName == user.FullName);
+        if (patient is null)
+        {
+            patient = new Patient
+            {
+                FullName = user.FullName,
+                Phone = user.PhoneNumber ?? "",
+                DateOfBirth = DateTime.Today.AddYears(-18)
+            };
+            db.Patients.Add(patient);
+            await db.SaveChangesAsync();
+        }
+
+        return (user, patient);
+    }
+
+    private async Task<bool> HasActiveDoctorConflictAsync(int doctorId, DateTime appointmentTime, int? excludeId = null)
+    {
+        var start = appointmentTime.AddMinutes(-29);
+        var end = appointmentTime.AddMinutes(29);
+        return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
+            && (!excludeId.HasValue || x.Id != excludeId.Value)
+            && x.Status != "Da huy" && x.Status != "Huy"
+            && x.Status != "Đã hủy" && x.Status != "Hủy"
+            && x.AppointmentTime >= start && x.AppointmentTime <= end);
+    }
+
+    private static bool CanEditPatientAppointment(Appointment appointment)
+        => appointment.Status != "Hoan tat" && appointment.Status != "Da huy" && appointment.Status != "Huy"
+            && appointment.Status != "Hoàn tất" && appointment.Status != "Đã hủy" && appointment.Status != "Hủy"
+            && appointment.AppointmentTime > DateTime.Now.AddHours(4);
+
+    private static List<AiChatMessage> BuildAiMessages(string patientName, IReadOnlyList<AuditLog> chatMessages)
+    {
+        var messages = new List<AiChatMessage>
+        {
+            new("system",
+                "Bạn là trợ lý AI của Phòng Khám An Tâm. Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu và thân thiện. " +
+                "Bạn hỗ trợ thông tin sức khỏe phổ thông, hướng dẫn đặt lịch, thanh toán, chuẩn bị đi khám và giải thích thuật ngữ y tế ở mức tham khảo. " +
+                "Không khẳng định chẩn đoán, không kê đơn thuốc, không thay thế bác sĩ. " +
+                "Nếu người bệnh có dấu hiệu nguy hiểm như đau ngực, khó thở, yếu liệt, co giật, chảy máu nhiều, sốt cao kéo dài hoặc triệu chứng nặng nhanh, hãy khuyên đi cấp cứu hoặc liên hệ bác sĩ ngay. " +
+                $"Tên bệnh nhân: {patientName}.")
+        };
+
+        foreach (var chat in chatMessages)
+        {
+            var text = ExtractChatText(chat.Description);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            var role = chat.Action is "AdminReply" or "AiReply" ? "assistant" : "user";
+            messages.Add(new AiChatMessage(role, text));
+        }
+
+        return messages;
+    }
+
+    private static string ExtractChatText(string description)
+    {
+        var text = description.Split('\n', 2)[0].Trim();
+        return text.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) ? "" : text;
+    }
+
+    private static string LimitAuditDescription(string value)
+        => value.Length <= 500 ? value : value[..497] + "...";
+
+    private async Task EnsurePortalNotificationsAsync(ApplicationUser user)
+    {
+        if (await db.Notifications.AnyAsync(x => x.UserId == user.Id))
+        {
+            return;
+        }
+
+        db.Notifications.AddRange(
+            new Notification { UserId = user.Id, Title = "Nhac lich kham sap toi", Message = "Ban co lich kham sap toi. Vui long den truoc 15 phut.", CreatedAt = DateTime.Now.AddMinutes(-10) },
+            new Notification { UserId = user.Id, Title = "Ket qua kham da duoc cap nhat", Message = "Ket qua kham va khuyen nghi dieu tri moi da san sang.", CreatedAt = DateTime.Now.AddHours(-2) },
+            new Notification { UserId = user.Id, Title = "Thong bao thanh toan", Message = "Hoa don kham benh cua ban dang cho thanh toan.", CreatedAt = DateTime.Now.AddDays(-1), IsRead = true },
+            new Notification { UserId = user.Id, Title = "Thong bao tu phong kham", Message = "An Tam mo them khung gio kham sang thu Bay va Chu nhat.", CreatedAt = DateTime.Now.AddDays(-3), IsRead = true });
+        await db.SaveChangesAsync();
     }
 
     private async Task<(ApplicationUser User, Patient Patient)> GetCurrentAsync()

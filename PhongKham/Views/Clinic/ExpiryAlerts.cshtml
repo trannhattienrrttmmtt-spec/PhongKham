@@ -1,37 +1,33 @@
-@model List<Medicine>
+@model List<InventoryLot>
 @{
     ViewData["Title"] = "Cảnh báo hết hạn";
-    var expired = Model.Count(x => x.ExpiryDate.Date < DateTime.Today);
-    var in30 = Model.Count(x => x.ExpiryDate.Date >= DateTime.Today && x.ExpiryDate.Date <= DateTime.Today.AddDays(30));
-    var in90 = Model.Count(x => x.ExpiryDate.Date > DateTime.Today.AddDays(30) && x.ExpiryDate.Date <= DateTime.Today.AddDays(90));
+    ViewData["Subtitle"] = "Theo dõi hạn dùng theo từng lô thuốc, ưu tiên cấp phát lô gần hết hạn trước.";
+    var today = DateTime.Today;
+    var expired = Model.Count(x => x.ExpiryDate.Date < today);
+    var in30 = Model.Count(x => x.ExpiryDate.Date >= today && x.ExpiryDate.Date <= today.AddDays(30));
+    var in90 = Model.Count(x => x.ExpiryDate.Date > today.AddDays(30) && x.ExpiryDate.Date <= today.AddDays(90));
 }
 
-<div class="page-title pharmacist-page-title">
-    <div>
-        <span class="eyebrow">An toàn kho thuốc</span>
-        <h1>Cảnh báo hết hạn</h1>
-        <div class="text-muted">Ưu tiên xử lý thuốc đã hết hạn, sắp hết hạn 30 ngày và nhóm cần theo dõi.</div>
-    </div>
-    <div class="page-actions">
-        <a class="btn btn-primary" asp-action="Medicines">Mở kho thuốc</a>
-    </div>
+<div class="page-actions" style="margin-bottom:20px">
+    <a class="btn btn-outline-primary" asp-action="InventoryLots">Xem lô thuốc</a>
+    <a class="btn btn-primary" asp-action="Medicines">Mở kho thuốc</a>
 </div>
 
 <section class="pharmacy-command-grid medicine-kpis">
     <div class="pharmacy-stat accent-rose"><span>Đã hết hạn</span><strong>@expired</strong><small>Ngừng cấp phát</small></div>
     <div class="pharmacy-stat accent-amber"><span>Trong 30 ngày</span><strong>@in30</strong><small>Cần xử lý sớm</small></div>
     <div class="pharmacy-stat accent-blue"><span>Trong 90 ngày</span><strong>@in90</strong><small>Theo dõi ưu tiên</small></div>
-    <div class="pharmacy-stat accent-teal"><span>Tổng cảnh báo</span><strong>@Model.Count</strong><small>Trong 6 tháng</small></div>
+    <div class="pharmacy-stat accent-teal"><span>Tổng cảnh báo</span><strong>@Model.Count</strong><small>Theo lô thuốc</small></div>
 </section>
 
 <section class="panel pharmacy-panel">
     <div class="panel-head pharmacy-toolbar-head">
         <div>
-            <h2>Danh sách thuốc cần kiểm soát hạn dùng</h2>
-            <p>Màu cảnh báo thay đổi theo số ngày còn lại.</p>
+            <h2>Danh sách lô thuốc cần kiểm soát hạn dùng</h2>
+            <p>Dữ liệu được map từ lô thuốc sang hồ sơ thuốc trong kho.</p>
         </div>
         <div class="pharmacy-toolbar">
-            <input id="expirySearch" class="form-control" placeholder="Tìm thuốc, đơn vị" />
+            <input id="expirySearch" class="form-control" placeholder="Tìm thuốc, mã lô, đơn vị" />
             <select id="expiryFilter" class="form-select">
                 <option value="all">Tất cả</option>
                 <option value="expired">Đã hết hạn</option>
@@ -40,28 +36,44 @@
             </select>
         </div>
     </div>
-    <div class="alert-card-grid">
-    @foreach (var medicine in Model)
+
+    @if (!Model.Any())
     {
-        var days = (medicine.ExpiryDate.Date - DateTime.Today).Days;
-        var state = days < 0 ? "expired" : days <= 30 ? "urgent" : "watch";
-        var badge = days < 0 ? "badge-critical" : days <= 30 ? "badge-hot" : "badge-warn";
-        var title = days < 0 ? "Đã hết hạn" : days <= 30 ? "Cần xử lý" : "Theo dõi";
-        <article class="alert-card stock-risk-card @(state == "expired" ? "is-critical" : state == "urgent" ? "is-low" : "is-expiring")"
-                 data-expiry-row data-state="@state" data-search="@($"{medicine.Name} {medicine.Unit}")">
-            <div class="risk-card-head">
-                <strong>@medicine.Name</strong>
-                <span class="@badge">@title</span>
-            </div>
-            <dl>
-                <div><dt>Tồn</dt><dd>@medicine.QuantityInStock @medicine.Unit</dd></div>
-                <div><dt>HSD</dt><dd>@medicine.ExpiryDate.ToString("dd/MM/yyyy")</dd></div>
-            </dl>
-            <footer>
-                <span>@(days < 0 ? $"Quá hạn {Math.Abs(days)} ngày" : $"Còn {days} ngày")</span>
-                <small>@(days < 0 ? "Khóa cấp phát và lập biên bản xử lý" : days <= 30 ? "Ưu tiên xuất trước hoặc trả nhà cung cấp" : "Đưa vào danh sách theo dõi")</small>
-            </footer>
-        </article>
+        <div class="empty-state">
+            <strong>Chưa có lô thuốc nào sắp hết hạn trong 12 tháng tới.</strong>
+            <p>Nhập kho hoặc cập nhật hạn dùng trong lô thuốc để hệ thống tự đưa vào danh sách cảnh báo.</p>
+            <a class="btn btn-primary" asp-action="InventoryReceipts">Tạo phiếu nhập</a>
+        </div>
     }
-    </div>
+    else
+    {
+        <div class="alert-card-grid">
+        @foreach (var lot in Model)
+        {
+            var medicine = lot.Medicine;
+            var days = (lot.ExpiryDate.Date - today).Days;
+            var state = days < 0 ? "expired" : days <= 30 ? "urgent" : "watch";
+            var badge = days < 0 ? "badge-critical" : days <= 30 ? "badge-hot" : "badge-warn";
+            var title = days < 0 ? "Đã hết hạn" : days <= 30 ? "Cần xử lý" : "Theo dõi";
+            var searchText = $"{medicine?.Name} {medicine?.Unit} {lot.BatchNumber} {lot.ReceiptCode}";
+            <article class="alert-card stock-risk-card @(state == "expired" ? "is-critical" : state == "urgent" ? "is-low" : "is-expiring")"
+                     data-expiry-row data-state="@state" data-search="@searchText">
+                <div class="risk-card-head">
+                    <strong>@(medicine?.Name ?? "Thuốc chưa liên kết")</strong>
+                    <span class="@badge">@title</span>
+                </div>
+                <dl>
+                    <div><dt>Số lô</dt><dd>@lot.BatchNumber</dd></div>
+                    <div><dt>Tồn lô</dt><dd>@lot.QuantityRemaining @(medicine?.Unit ?? "")</dd></div>
+                    <div><dt>HSD</dt><dd>@lot.ExpiryDate.ToString("dd/MM/yyyy")</dd></div>
+                    <div><dt>Phiếu nhập</dt><dd>@lot.ReceiptCode</dd></div>
+                </dl>
+                <footer>
+                    <span>@(days < 0 ? $"Quá hạn {Math.Abs(days)} ngày" : $"Còn {days} ngày")</span>
+                    <small>@(days < 0 ? "Khóa cấp phát và xử lý tồn lô" : days <= 30 ? "Ưu tiên xuất trước hoặc trả nhà cung cấp" : "Đưa vào danh sách theo dõi")</small>
+                </footer>
+            </article>
+        }
+        </div>
+    }
 </section>

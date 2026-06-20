@@ -1,6 +1,7 @@
 @model AdminPatientPortalViewModel
 @{
     ViewData["Title"] = "Cổng bệnh nhân";
+    ViewData["Subtitle"] = "Xác nhận lịch khám, quản lý thanh toán, gửi thông báo và trả lời chat.";
     var patientMessages = Model.ChatMessages.Where(x => x.Action == "PatientMessage").ToList();
 }
 
@@ -13,13 +14,7 @@
     <div class="portal-toast error">@error</div>
 }
 
-<div class="page-title">
-    <div>
-        <span class="eyebrow">Quản trị liên kết bệnh nhân</span>
-        <h1>Cổng bệnh nhân</h1>
-        <div class="text-muted">Xác nhận lịch khám, quản lý thanh toán, gửi thông báo và trả lời chat.</div>
-    </div>
-</div>
+
 
 <div class="metric-grid">
     <div class="metric accent-teal"><span>Lịch chờ xử lý</span><strong>@Model.Appointments.Count(x => x.Status is "Đã đặt lịch" or "Đang chờ")</strong><small>Cần xác nhận hoặc điều phối</small></div>

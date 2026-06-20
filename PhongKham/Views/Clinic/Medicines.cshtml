@@ -1,80 +1,191 @@
 @model List<Medicine>
 @{
     ViewData["Title"] = "Kho thuốc";
-    var transactions = (List<InventoryTransaction>)ViewBag.InventoryTransactions;
+    ViewData["Subtitle"] = "Quản lý danh mục thuốc, tồn kho, mức tối thiểu, hạn dùng và trạng thái sử dụng.";
+    var totalItems = Model.Count;
+    var activeItems = Model.Count(x => x.IsActive);
+    var outOfStock = Model.Count(x => x.IsActive && x.QuantityInStock <= 0);
+    var lowStock = Model.Count(x => x.IsActive && x.QuantityInStock > 0 && x.QuantityInStock <= x.MinimumStock);
+    var expiringSoon = Model.Count(x => x.IsActive && x.ExpiryDate.Date >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddMonths(3));
+    var expired = Model.Count(x => x.ExpiryDate.Date < DateTime.Today);
+    var inactive = Model.Count(x => !x.IsActive);
+    var inventoryValue = Model.Where(x => x.IsActive).Sum(x => x.QuantityInStock * x.UnitPrice);
+    var urgentMedicines = Model
+        .Where(x => x.IsActive && (x.QuantityInStock <= x.MinimumStock || x.ExpiryDate <= DateTime.Today.AddMonths(3)))
+        .Select(x => new
+        {
+            Medicine = x,
+            IsOut = x.QuantityInStock <= 0,
+            IsLow = x.QuantityInStock > 0 && x.QuantityInStock <= x.MinimumStock,
+            IsExpired = x.ExpiryDate.Date < DateTime.Today,
+            IsExpiring = x.ExpiryDate.Date >= DateTime.Today && x.ExpiryDate <= DateTime.Today.AddMonths(3),
+            RiskScore = (x.QuantityInStock <= 0 ? 5 : x.QuantityInStock <= x.MinimumStock ? 3 : 0)
+                + (x.ExpiryDate.Date < DateTime.Today ? 5 : x.ExpiryDate <= DateTime.Today.AddMonths(1) ? 3 : x.ExpiryDate <= DateTime.Today.AddMonths(3) ? 1 : 0)
+        })
+        .OrderByDescending(x => x.RiskScore)
+        .ThenBy(x => x.Medicine.QuantityInStock)
+        .ThenBy(x => x.Medicine.ExpiryDate)
+        .Take(5)
+        .ToList();
 }
 
-<div class="page-title">
-    <div>
-        <h1>Kho thuốc</h1>
-        <div class="text-muted">Theo dõi tồn kho, hạn dùng và cảnh báo thuốc sắp hết.</div>
-    </div>
+<div class="page-actions" style="margin-bottom:20px">
+    <a class="btn btn-primary" asp-action="InventoryReceipts">Nhập thêm thuốc</a>
+    <button type="button" class="btn btn-outline-primary" data-focus-target="medicineSearch">Tìm thuốc</button>
 </div>
 
-<div class="metric-grid inventory-metrics">
-    <div class="metric accent-amber"><span>Thuốc sắp hết</span><strong>@ViewBag.LowStockCount</strong><small>Tồn dưới 30 đơn vị</small></div>
-    <div class="metric accent-rose"><span>Sắp hết hạn</span><strong>@ViewBag.ExpiringCount</strong><small>Trong vòng 60 ngày</small></div>
-    <div class="metric accent-blue"><span>Mặt hàng đang hiển thị</span><strong>@Model.Count</strong><small>Theo bộ lọc hiện tại</small></div>
-</div>
+<section class="pharmacy-command-grid medicine-kpis">
+    <div class="pharmacy-stat accent-teal"><span>Thuốc đang dùng</span><strong>@activeItems</strong><small>@inactive thuốc ngừng sử dụng</small></div>
+    <div class="pharmacy-stat accent-rose"><span>Hết hàng</span><strong>@outOfStock</strong><small>Không thể cấp phát</small></div>
+    <div class="pharmacy-stat accent-amber"><span>Sắp hết</span><strong>@lowStock</strong><small>Dưới mức tối thiểu</small></div>
+    <div class="pharmacy-stat accent-blue"><span>Giá trị tồn</span><strong>@inventoryValue.ToString("N0") đ</strong><small>Tạm tính theo đơn giá</small></div>
+</section>
 
-<div class="panel compact-panel">
-    <form asp-action="Medicines" method="get" class="admin-filter-bar">
-        <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Tìm tên thuốc..." />
-        <select name="stock" class="form-select">
-            <option value="">Tất cả trạng thái</option>
-            <option value="low" selected="@(ViewBag.Stock == "low")">Sắp hết</option>
-            <option value="expiring" selected="@(ViewBag.Stock == "expiring")">Sắp hết hạn</option>
-            <option value="expired" selected="@(ViewBag.Stock == "expired")">Đã hết hạn</option>
-        </select>
-        <button class="btn btn-primary">Lọc kho</button>
-        <a asp-action="Medicines" class="btn btn-outline-primary">Xóa lọc</a>
-    </form>
-</div>
-
-<div class="panel">
-    <div class="panel-head">
-        <div>
-            <h2>Nhập thuốc</h2>
-            <p>Bổ sung thuốc mới vào danh sách quản lý.</p>
+@if (urgentMedicines.Any())
+{
+    <section class="pharmacy-alert-deck stock-risk-center">
+        <div class="alert-deck-copy">
+            <span class="eyebrow">Cảnh báo kho</span>
+            <h2>Thuốc cần xử lý</h2>
+            <p>Ưu tiên theo mức tồn tối thiểu, hết hàng, sắp hết hạn và đã hết hạn.</p>
+            <div class="risk-summary">
+                <div><strong>@outOfStock</strong><span>Hết hàng</span></div>
+                <div><strong>@lowStock</strong><span>Sắp hết</span></div>
+                <div><strong>@expired</strong><span>Hết hạn</span></div>
+            </div>
         </div>
-    </div>
-    <form asp-action="AddMedicine" method="post" class="form-grid">
-        <input name="Name" class="form-control" placeholder="Tên thuốc" required />
-        <input name="Unit" class="form-control" placeholder="Đơn vị" value="Viên" />
-        <input name="QuantityInStock" type="number" class="form-control" placeholder="Số lượng" />
-        <input name="UnitPrice" type="number" class="form-control" placeholder="Đơn giá" />
-        <input name="ExpiryDate" type="date" class="form-control" />
-        <button class="btn btn-primary">Lưu thuốc</button>
-    </form>
+        <div class="alert-card-grid">
+            @foreach (var item in urgentMedicines)
+            {
+                var medicine = item.Medicine;
+                var cardClass = item.IsExpired || item.IsOut ? "is-critical" : item.IsLow ? "is-low" : "is-expiring";
+                var actionText = item.IsExpired ? "Ngừng cấp phát" : item.IsOut ? "Nhập bổ sung ngay" : item.IsLow ? "Lập phiếu nhập" : "Ưu tiên xuất trước";
+                var dueText = item.IsExpired ? $"Quá hạn {Math.Abs((medicine.ExpiryDate.Date - DateTime.Today).Days)} ngày" : item.IsOut ? "Hết tồn kho" : item.IsLow ? $"Tối thiểu {medicine.MinimumStock}" : $"Trước {medicine.ExpiryDate:dd/MM}";
+                <article class="alert-card stock-risk-card @cardClass">
+                    <div class="risk-card-head">
+                        <strong>@medicine.Name</strong>
+                        <span class="risk-score">R@(item.RiskScore)</span>
+                    </div>
+                    <div class="risk-meter">
+                        <i style="width:@Math.Min(100, Math.Max(12, item.RiskScore * 12))%"></i>
+                    </div>
+                    <dl>
+                        <div><dt>Tồn</dt><dd>@medicine.QuantityInStock @medicine.Unit</dd></div>
+                        <div><dt>Mức tối thiểu</dt><dd>@medicine.MinimumStock</dd></div>
+                    </dl>
+                    <footer>
+                        <span>@actionText</span>
+                        <small>@dueText</small>
+                    </footer>
+                </article>
+            }
+        </div>
+    </section>
+}
+
+<div class="pharmacy-workspace">
+    <section class="panel pharmacy-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Thêm thuốc mới</h2>
+                <p>Chỉ dùng khi thuốc chưa tồn tại trong kho. Thuốc đã có thì nhập thêm qua phiếu nhập kho.</p>
+            </div>
+            <a class="btn btn-outline-primary" asp-action="InventoryReceipts">Mở phiếu nhập</a>
+        </div>
+        <form asp-action="AddMedicine" method="post" class="form-grid">
+            <input name="Code" class="form-control" placeholder="Mã thuốc, ví dụ T001" />
+            <input name="Name" class="form-control" placeholder="Tên thuốc" required />
+            <input name="Unit" class="form-control" placeholder="Đơn vị" value="Viên" />
+            <textarea name="Smiles" class="form-control wide" rows="2" placeholder="SMILES nếu có"></textarea>
+            <input name="MinimumStock" type="number" min="0" value="30" class="form-control" placeholder="Mức tối thiểu" />
+            <input name="QuantityInStock" type="number" min="0" value="0" class="form-control" placeholder="Tồn đầu kỳ" />
+            <input name="UnitPrice" type="number" min="0" step="100" class="form-control" placeholder="Đơn giá" />
+            <input name="ExpiryDate" type="date" class="form-control" />
+            <button class="btn btn-primary">Thêm thuốc mới</button>
+        </form>
+    </section>
+
+    <aside class="panel pharmacy-mini-panel">
+        <h2>Quy tắc kho</h2>
+        <div class="mini-steps">
+            <span>1</span><strong>Không tạo trùng thuốc đã có</strong>
+            <span>2</span><strong>Nhập thêm qua phiếu nhập kho</strong>
+            <span>3</span><strong>Ngừng dùng thay vì xóa thuốc cũ</strong>
+        </div>
+    </aside>
 </div>
 
-<div class="panel">
-    <div class="panel-head">
+<div class="panel pharmacy-panel">
+    <div class="panel-head pharmacy-toolbar-head">
         <div>
-            <h2>Tồn kho</h2>
-            <p>@Model.Count mặt hàng trong kho.</p>
+            <h2>Danh sách kho thuốc</h2>
+            <p>@totalItems mặt hàng. Có @lowStock sắp hết, @expiringSoon sắp hết hạn và @expired đã hết hạn.</p>
+        </div>
+        <div class="pharmacy-toolbar">
+            <input class="form-control" id="medicineSearch" placeholder="Tìm mã thuốc, tên thuốc, đơn vị..." />
+            <select class="form-select" id="medicineFilter">
+                <option value="all">Tất cả</option>
+                <option value="out">Hết hàng</option>
+                <option value="low">Sắp hết</option>
+                <option value="expiring">Sắp hết hạn</option>
+                <option value="expired">Đã hết hạn</option>
+                <option value="inactive">Ngừng sử dụng</option>
+                <option value="ok">Ổn định</option>
+            </select>
         </div>
     </div>
     <div class="table-responsive">
-        <table class="table">
-            <thead><tr><th>Thuốc</th><th>Đơn vị</th><th>Số lượng</th><th>Đơn giá</th><th>Hạn dùng</th><th>Cảnh báo</th><th>Điều chỉnh kho</th></tr></thead>
+        <table class="table pharmacy-table" id="medicineTable">
+            <thead><tr><th>Mã thuốc</th><th>Tên thuốc</th><th>Đơn vị</th><th>Tồn kho</th><th>Mức tối thiểu</th><th>Đơn giá</th><th>Hạn dùng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
             <tbody>
             @foreach (var x in Model)
             {
-                <tr>
+                var isOut = x.QuantityInStock <= 0;
+                var isLow = x.QuantityInStock > 0 && x.QuantityInStock <= x.MinimumStock;
+                var isExpired = x.ExpiryDate.Date < DateTime.Today;
+                var isExpiring = !isExpired && x.ExpiryDate <= DateTime.Today.AddMonths(3);
+                var ratio = x.MinimumStock <= 0 ? 100 : Math.Min(100, Math.Max(8, x.QuantityInStock * 100 / Math.Max(1, x.MinimumStock * 2)));
+                var state = !x.IsActive ? "inactive" : isExpired ? "expired" : isOut ? "out" : isLow ? "low" : isExpiring ? "expiring" : "ok";
+                var statusText = !x.IsActive ? "Ngừng sử dụng" : isExpired ? "Đã hết hạn" : isOut ? "Hết hàng" : isLow ? "Sắp hết" : isExpiring ? "Sắp hết hạn" : "Ổn định";
+                var statusBadge = !x.IsActive ? "badge-critical" : isExpired || isOut ? "badge-hot" : isLow || isExpiring ? "badge-warn" : "badge-soft";
+                <tr class="@(!x.IsActive ? "inactive-row" : "")" data-medicine-row data-search="@($"{x.Code} {x.Name} {x.Unit}".ToLowerInvariant())" data-state="@state">
+                    <td><strong>@(string.IsNullOrWhiteSpace(x.Code) ? $"T{x.Id:000}" : x.Code)</strong></td>
                     <td><strong>@x.Name</strong></td>
                     <td>@x.Unit</td>
-                    <td>@x.QuantityInStock</td>
-                    <td>@x.UnitPrice.ToString("N0") &#273;</td>
-                    <td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td>
-                    <td><span class="badge badge-soft">@(x.ExpiryDate < DateTime.Today ? "Đã hết hạn" : x.ExpiryDate <= DateTime.Today.AddDays(60) ? "Sắp hết hạn" : x.QuantityInStock < 30 ? "Sắp hết" : "Ổn định")</span></td>
                     <td>
-                        <form asp-action="AdjustMedicineStock" method="post" class="stock-adjust-form">
-                            <input type="hidden" name="id" value="@x.Id" />
-                            <input name="quantity" type="number" class="form-control form-control-sm" placeholder="+ nhập / - xuất" required />
-                            <input name="reason" class="form-control form-control-sm" placeholder="Lý do / mã phiếu" />
-                            <button class="btn btn-sm btn-outline-primary">Cập nhật</button>
-                        </form>
+                        <div class="stock-cell">
+                            <span>@x.QuantityInStock</span>
+                            <div class="stock-bar"><i style="width:@ratio%"></i></div>
+                        </div>
+                    </td>
+                    <td>@x.MinimumStock</td>
+                    <td>@x.UnitPrice.ToString("N0") đ</td>
+                    <td>@x.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                    <td><span class="badge @statusBadge">@statusText</span></td>
+                    <td>
+                        <div class="table-actions medicine-actions">
+                            <button type="button"
+                                    class="btn btn-outline-primary btn-sm"
+                                    data-medicine-edit
+                                    data-id="@x.Id"
+                                    data-code="@x.Code"
+                                    data-smiles="@x.Smiles"
+                                    data-name="@x.Name"
+                                    data-unit="@x.Unit"
+                                    data-quantity="@x.QuantityInStock"
+                                    data-minimum="@x.MinimumStock"
+                                    data-price="@x.UnitPrice"
+                                    data-expiry="@x.ExpiryDate.ToString("yyyy-MM-dd")"
+                                    data-active="@x.IsActive.ToString().ToLowerInvariant()">
+                                Sửa
+                            </button>
+                            <a class="btn btn-primary btn-sm" asp-action="InventoryReceipts">Nhập thêm</a>
+                            <form asp-action="ToggleMedicineActive" method="post">
+                                <input type="hidden" name="id" value="@x.Id" />
+                                <input type="hidden" name="isActive" value="@(!x.IsActive)" />
+                                <button class="btn btn-outline-danger btn-sm">@(x.IsActive ? "Ngừng" : "Dùng lại")</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
             }
@@ -83,18 +194,36 @@
     </div>
 </div>
 
-<div class="panel">
-    <div class="panel-head"><div><h2>Nhật ký nhập xuất gần đây</h2><p>Theo dõi thay đổi tồn kho do điều chỉnh và kê đơn.</p></div></div>
-    <div class="table-responsive">
-        <table class="table">
-            <thead><tr><th>Thời gian</th><th>Thuốc</th><th>Loại</th><th>Số lượng</th><th>Tham chiếu</th><th>Người thực hiện</th></tr></thead>
-            <tbody>
-            @foreach (var item in transactions)
-            {
-                <tr><td>@item.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td><td>@item.Medicine?.Name</td><td>@item.TransactionType</td><td>@item.Quantity</td><td>@item.ReferenceCode</td><td>@item.CreatedBy</td></tr>
-            }
-            @if (!transactions.Any()){<tr><td colspan="6" class="text-center text-muted">Chưa có giao dịch kho.</td></tr>}
-            </tbody>
-        </table>
+<div class="modal fade" id="medicineEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content prescription-modal">
+            <form asp-action="UpdateMedicine" method="post">
+                <div class="modal-header">
+                    <div>
+                        <span class="eyebrow">Kho thuốc</span>
+                        <h5 class="modal-title">Sửa thông tin thuốc</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="Id" id="editMedicineId" />
+                    <input type="hidden" name="IsActive" id="editMedicineIsActive" value="true" />
+                    <div class="form-grid single-column">
+                        <input name="Code" id="editMedicineCode" class="form-control" placeholder="Mã thuốc" maxlength="40" />
+                        <input name="Name" id="editMedicineName" class="form-control" placeholder="Tên thuốc" required />
+                        <input name="Unit" id="editMedicineUnit" class="form-control" placeholder="Đơn vị" required />
+                        <textarea name="Smiles" id="editMedicineSmiles" class="form-control" rows="3" placeholder="SMILES"></textarea>
+                        <input name="MinimumStock" id="editMedicineMinimum" type="number" min="0" class="form-control" placeholder="Mức tối thiểu" required />
+                        <input name="QuantityInStock" id="editMedicineQuantity" type="number" min="0" class="form-control" placeholder="Tồn kho" required />
+                        <input name="UnitPrice" id="editMedicinePrice" type="number" min="0" step="100" class="form-control" placeholder="Đơn giá" required />
+                        <input name="ExpiryDate" id="editMedicineExpiry" type="date" class="form-control" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Hủy</button>
+                    <button class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>

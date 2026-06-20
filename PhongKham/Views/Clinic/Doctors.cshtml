@@ -1,26 +1,29 @@
 @model List<Doctor>
-@{ ViewData["Title"] = "Bác sĩ"; }
-
-<div class="page-title">
-    <div>
-        <h1>Bác sĩ</h1>
-        <div class="text-muted">Quản lý thông tin bác sĩ, chuyên khoa và trạng thái làm việc.</div>
-    </div>
-</div>
+@{
+    ViewData["Title"] = "Bác sĩ";
+    ViewData["Subtitle"] = "Quản lý hồ sơ bác sĩ và tài khoản đăng nhập theo role BacSi.";
+}
 
 <div class="panel">
     <div class="panel-head">
         <div>
-            <h2>Thêm bác sĩ</h2>
-            <p>Nhập thông tin cơ bản để xếp lịch và phân công khám.</p>
+            <h2>Thêm bác sĩ và tài khoản</h2>
+            <p>Email bên dưới sẽ được gắn vào hồ sơ bác sĩ để đăng nhập và chỉ xem lịch khám của chính bác sĩ đó.</p>
         </div>
     </div>
+
     <form asp-action="AddDoctor" method="post" class="form-grid">
         <input name="FullName" class="form-control" placeholder="Họ tên bác sĩ" required />
         <input name="Specialty" class="form-control" placeholder="Chuyên khoa" />
         <input name="Phone" class="form-control" placeholder="Điện thoại" />
-        <select name="Status" class="form-select"><option>Đang làm việc</option><option>Nghỉ phép</option><option>Tạm ngưng</option></select>
-        <button class="btn btn-primary">Lưu bác sĩ</button>
+        <select name="Status" class="form-select">
+            <option value="Đang làm việc">Đang làm việc</option>
+            <option value="Nghỉ phép">Nghỉ phép</option>
+            <option value="Tạm ngưng">Tạm ngưng</option>
+        </select>
+        <input name="email" type="email" class="form-control" placeholder="Email đăng nhập bác sĩ" required />
+        <input name="password" type="text" class="form-control" placeholder="Mật khẩu ban đầu, ví dụ Dev@123456" value="Dev@123456" required />
+        <button class="btn btn-primary">Tạo bác sĩ và tài khoản</button>
     </form>
 </div>
 
@@ -33,11 +36,34 @@
     </div>
     <div class="table-responsive">
         <table class="table">
-            <thead><tr><th>Họ tên</th><th>Chuyên khoa</th><th>Điện thoại</th><th>Trạng thái</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Họ tên</th>
+                    <th>Chuyên khoa</th>
+                    <th>Điện thoại</th>
+                    <th>Tài khoản</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
             <tbody>
-            @foreach (var x in Model)
+            @foreach (var doctor in Model)
             {
-                <tr><td><strong>@x.FullName</strong></td><td>@x.Specialty</td><td>@x.Phone</td><td><span class="badge badge-soft">@x.Status</span></td></tr>
+                <tr>
+                    <td><strong>@doctor.FullName</strong></td>
+                    <td>@doctor.Specialty</td>
+                    <td>@doctor.Phone</td>
+                    <td>
+                        @if (string.IsNullOrWhiteSpace(doctor.AccountEmail))
+                        {
+                            <span class="badge badge-warn">Chưa liên kết</span>
+                        }
+                        else
+                        {
+                            <span>@doctor.AccountEmail</span>
+                        }
+                    </td>
+                    <td><span class="badge badge-soft">@doctor.Status</span></td>
+                </tr>
             }
             </tbody>
         </table>

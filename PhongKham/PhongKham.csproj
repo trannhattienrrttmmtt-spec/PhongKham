@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>552245fa-9943-40da-a37c-4016aac43d0c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,12 @@
     <Content Remove="verify\**" />
     <EmbeddedResource Remove="verify\**" />
     <None Remove="verify\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Data\DrugInformation.seed.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

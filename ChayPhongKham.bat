@@ -28,6 +28,10 @@ if not exist "PhongKham\PhongKham.csproj" (
     exit /b 1
 )
 
+echo [0/4] Dung web cu neu dang chay...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process PhongKham -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\PhongKham\bin\Debug\net10.0\PhongKham.exe' } | Stop-Process -Force"
+echo.
+
 echo [1/4] Kiem tra cau hinh database...
 echo File cau hinh: PhongKham\appsettings.json
 echo Neu may khac SQL Server, sua ConnectionStrings:ClinicDatabase trong file nay.

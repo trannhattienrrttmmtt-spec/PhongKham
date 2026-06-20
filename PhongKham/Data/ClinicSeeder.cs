@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic.FileIO;
 using PhongKham.Models;
+using System.Text;
 
 namespace PhongKham.Data;
 
 public static class ClinicSeeder
 {
+    private const int MinimumSeedMedicineStock = 101;
+
     public static async Task SeedAsync(
         ClinicDbContext db,
         UserManager<ApplicationUser> userManager,
@@ -18,10 +22,18 @@ public static class ClinicSeeder
         if (!await db.Patients.AnyAsync())
         {
             await SeedReferenceDataAsync(db);
+            await EnsureDrugInformationSeedDataAsync(db);
+            await EnsureMedicinePricesAsync(db);
+            await EnsureIntegratedWorkflowSeedDataAsync(db);
+            await EnsureMinimumMedicineStockAsync(db);
             return;
         }
 
         await EnsureDoctorWorkflowSeedDataAsync(db);
+        await EnsureDrugInformationSeedDataAsync(db);
+        await EnsureMedicinePricesAsync(db);
+        await EnsureIntegratedWorkflowSeedDataAsync(db);
+        await EnsureMinimumMedicineStockAsync(db);
     }
 
     private static async Task SeedReferenceDataAsync(ClinicDbContext db)
@@ -93,23 +105,23 @@ public static class ClinicSeeder
                 Name = "Paracetamol 500mg",
                 Unit = "Vien",
                 QuantityInStock = 240,
-                UnitPrice = 1200,
+                UnitPrice = 12000,
                 ExpiryDate = DateTime.Today.AddMonths(18)
             },
             new Medicine
             {
                 Name = "Amoxicillin 500mg",
                 Unit = "Vien",
-                QuantityInStock = 80,
-                UnitPrice = 2500,
+                QuantityInStock = 150,
+                UnitPrice = 25000,
                 ExpiryDate = DateTime.Today.AddMonths(10)
             },
             new Medicine
             {
                 Name = "Nuoc muoi sinh ly",
                 Unit = "Chai",
-                QuantityInStock = 18,
-                UnitPrice = 9000,
+                QuantityInStock = 150,
+                UnitPrice = 30000,
                 ExpiryDate = DateTime.Today.AddMonths(8)
             }
         };
@@ -265,7 +277,7 @@ public static class ClinicSeeder
         await EnsureUserAsync(userManager, "admin@phongkham.local", "Quan tri he thong", "Admin", "Admin");
         await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bac si phong kham", "BacSi", "BacSi");
         await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Duoc si", "DuocSi", "DuocSi");
-        await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Benh nhan mau", "BenhNhan", "BenhNhan");
+        await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Nguyen Van An", "BenhNhan", "BenhNhan", "0901234567");
     }
 
     private static async Task EnsureUserAsync(
@@ -273,7 +285,8 @@ public static class ClinicSeeder
         string email,
         string fullName,
         string role,
-        string staffCode)
+        string staffCode,
+        string phoneNumber = "")
     {
         var user = await userManager.FindByEmailAsync(email);
         if (user is null)
@@ -284,7 +297,8 @@ public static class ClinicSeeder
                 Email = email,
                 EmailConfirmed = true,
                 FullName = fullName,
-                StaffCode = staffCode
+                StaffCode = staffCode,
+                PhoneNumber = phoneNumber
             };
 
             var result = await userManager.CreateAsync(user, "Dev@123456");
@@ -294,10 +308,11 @@ public static class ClinicSeeder
             }
         }
 
-        if (user.FullName != fullName || user.StaffCode != staffCode)
+        if (user.FullName != fullName || user.StaffCode != staffCode || user.PhoneNumber != phoneNumber)
         {
             user.FullName = fullName;
             user.StaffCode = staffCode;
+            user.PhoneNumber = phoneNumber;
             await userManager.UpdateAsync(user);
         }
 
@@ -334,7 +349,7 @@ public static class ClinicSeeder
             ["admin@phongkham.local"] = "Quan tri he thong",
             ["bacsi@phongkham.local"] = "Bac si phong kham",
             ["duocsi@phongkham.local"] = "Duoc si",
-            ["benhnhan@phongkham.local"] = "Benh nhan mau"
+            ["benhnhan@phongkham.local"] = "Nguyen Van An"
         };
 
         foreach (var (email, fullName) in names)
@@ -441,4 +456,352 @@ public static class ClinicSeeder
             await db.SaveChangesAsync();
         }
     }
+
+    private static async Task EnsureIntegratedWorkflowSeedDataAsync(ClinicDbContext db)
+    {
+        var changed = false;
+
+        var appointments = await db.Appointments
+            .Include(x => x.Patient)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        var appointmentIds = appointments.Select(x => x.Id).ToList();
+        var existingInvoiceAppointmentIds = await db.Invoices
+            .Where(x => x.AppointmentId.HasValue && appointmentIds.Contains(x.AppointmentId.Value))
+            .Select(x => x.AppointmentId!.Value)
+            .ToListAsync();
+
+        foreach (var appointment in appointments.Where(x => !existingInvoiceAppointmentIds.Contains(x.Id)))
+        {
+            var medicineFee = await db.Prescriptions
+                .Where(x => x.AppointmentId == appointment.Id)
+                .SumAsync(x => (decimal?)x.TotalAmount) ?? 0m;
+
+            db.Invoices.Add(new Invoice
+            {
+                InvoiceCode = $"HD-SEED-{appointment.Id:D5}",
+                PatientId = appointment.PatientId,
+                AppointmentId = appointment.Id,
+                ExaminationFee = appointment.Fee,
+                MedicineFee = medicineFee,
+                TotalAmount = appointment.Fee + medicineFee,
+                PaymentStatus = IsCancelledStatus(appointment.Status) ? "Cancelled" : "Unpaid",
+                CreatedBy = "seed"
+            });
+            changed = true;
+        }
+
+        if (!await db.InventoryLots.AnyAsync())
+        {
+            var medicines = await db.Medicines.OrderBy(x => x.Id).ToListAsync();
+            foreach (var medicine in medicines.Where(x => x.QuantityInStock > 0))
+            {
+                var receiptCode = $"PN-SEED-{medicine.Id:D3}";
+                var lot = new InventoryLot
+                {
+                    MedicineId = medicine.Id,
+                    BatchNumber = $"LOT-SEED-{medicine.Id:D3}",
+                    ReceiptCode = receiptCode,
+                    QuantityReceived = medicine.QuantityInStock,
+                    QuantityRemaining = medicine.QuantityInStock,
+                    UnitCost = medicine.UnitPrice,
+                    ExpiryDate = medicine.ExpiryDate,
+                    ReceivedAt = DateTime.Now,
+                    CreatedBy = "seed"
+                };
+                db.InventoryLots.Add(lot);
+
+                db.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    MedicineId = medicine.Id,
+                    InventoryLot = lot,
+                    TransactionType = "Import",
+                    Quantity = medicine.QuantityInStock,
+                    ReferenceCode = receiptCode,
+                    CreatedBy = "seed"
+                });
+                changed = true;
+            }
+        }
+
+        var prescriptions = await db.Prescriptions
+            .Include(x => x.Details)
+            .Where(x => x.DispenseStatus != "Rejected")
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        foreach (var prescription in prescriptions.Where(x => x.Details.Any()))
+        {
+            var referenceCode = $"DT-{prescription.Id:D5}";
+            var alreadyReserved = await db.InventoryTransactions.AnyAsync(x =>
+                x.ReferenceCode == referenceCode && x.TransactionType == "Prescription");
+            if (alreadyReserved)
+            {
+                continue;
+            }
+
+            foreach (var group in prescription.Details.GroupBy(x => x.MedicineId))
+            {
+                var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == group.Key);
+                if (medicine is null)
+                {
+                    continue;
+                }
+
+                var quantity = group.Sum(x => x.Quantity);
+                medicine.QuantityInStock -= quantity;
+                db.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    MedicineId = medicine.Id,
+                    TransactionType = "Prescription",
+                    Quantity = -quantity,
+                    ReferenceCode = referenceCode,
+                    CreatedBy = "seed"
+                });
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static bool IsCancelledStatus(string status)
+        => status is "Huy" or "Da huy" or "Hủy" or "Đã hủy";
+
+    private static async Task EnsureMinimumMedicineStockAsync(ClinicDbContext db)
+    {
+        var medicines = await db.Medicines.OrderBy(x => x.Id).ToListAsync();
+        var changed = false;
+
+        foreach (var medicine in medicines.Where(x => x.QuantityInStock <= 100))
+        {
+            var delta = MinimumSeedMedicineStock - medicine.QuantityInStock;
+            medicine.QuantityInStock = MinimumSeedMedicineStock;
+
+            var lot = await db.InventoryLots
+                .Where(x => x.MedicineId == medicine.Id
+                    && !x.IsClosed
+                    && x.ExpiryDate >= DateTime.Today)
+                .OrderBy(x => x.ExpiryDate)
+                .FirstOrDefaultAsync();
+
+            if (lot is null)
+            {
+                lot = new InventoryLot
+                {
+                    MedicineId = medicine.Id,
+                    BatchNumber = $"LOT-AUTO-{medicine.Id:D3}",
+                    ReceiptCode = $"PN-AUTO-{medicine.Id:D3}",
+                    QuantityReceived = delta,
+                    QuantityRemaining = delta,
+                    UnitCost = medicine.UnitPrice,
+                    ExpiryDate = medicine.ExpiryDate > DateTime.Today ? medicine.ExpiryDate : DateTime.Today.AddYears(2),
+                    ReceivedAt = DateTime.Now,
+                    CreatedBy = "seed"
+                };
+                db.InventoryLots.Add(lot);
+            }
+            else
+            {
+                lot.QuantityReceived += delta;
+                lot.QuantityRemaining += delta;
+            }
+
+            db.InventoryTransactions.Add(new InventoryTransaction
+            {
+                MedicineId = medicine.Id,
+                InventoryLot = lot,
+                TransactionType = "Import",
+                Quantity = delta,
+                ReferenceCode = "AUTO-STOCK-101",
+                CreatedBy = "seed"
+            });
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+        }
+    }
+
+    private static async Task EnsureMedicinePricesAsync(ClinicDbContext db)
+    {
+        var medicines = await db.Medicines.Where(x => x.UnitPrice <= 0).ToListAsync();
+        if (medicines.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var medicine in medicines)
+        {
+            medicine.UnitPrice = EstimateMedicineUnitPrice(medicine.Name);
+        }
+
+        await db.SaveChangesAsync();
+
+        await db.Database.ExecuteSqlRawAsync("""
+            UPDATE lots
+            SET lots.UnitCost = medicines.UnitPrice
+            FROM InventoryLots lots
+            INNER JOIN Medicines medicines ON medicines.Id = lots.MedicineId
+            WHERE lots.UnitCost <= 0 AND medicines.UnitPrice > 0;
+
+            UPDATE details
+            SET details.UnitPrice = medicines.UnitPrice,
+                details.LineTotal = medicines.UnitPrice * details.Quantity
+            FROM PrescriptionDetails details
+            INNER JOIN Medicines medicines ON medicines.Id = details.MedicineId
+            WHERE details.UnitPrice <= 0 AND medicines.UnitPrice > 0;
+            """);
+    }
+
+    private static decimal EstimateMedicineUnitPrice(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return 20000m;
+        }
+
+        var normalized = name.Trim().ToLowerInvariant();
+        if (normalized.Contains("insulin")
+            || normalized.Contains("interferon")
+            || normalized.Contains("immunoglobulin")
+            || normalized.Contains("mab"))
+        {
+            return 500000m;
+        }
+
+        if (normalized.Contains("fentanyl")
+            || normalized.Contains("alfentanil")
+            || normalized.Contains("morphine")
+            || normalized.Contains("ketamine")
+            || normalized.Contains("codeine"))
+        {
+            return 150000m;
+        }
+
+        if (normalized.Contains("cillin")
+            || normalized.Contains("cycline")
+            || normalized.Contains("mycin")
+            || normalized.Contains("vir")
+            || normalized.Contains("azole"))
+        {
+            return 35000m;
+        }
+
+        if (normalized.Contains("acid")
+            || normalized.Contains("ate")
+            || normalized.Contains("ide")
+            || normalized.Contains("ine"))
+        {
+            return 20000m;
+        }
+
+        return 15000m;
+    }
+
+    private static async Task EnsureDrugInformationSeedDataAsync(ClinicDbContext db)
+    {
+        var rows = ReadDrugSeedRows();
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var existingCodes = await db.Medicines
+            .Where(x => x.Code != "")
+            .Select(x => x.Code)
+            .ToListAsync();
+        var existingCodeSet = existingCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var medicines = rows
+            .Where(x => !existingCodeSet.Contains(x.Code))
+            .GroupBy(x => x.Code, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.First())
+            .Select(x => new Medicine
+            {
+                Code = x.Code,
+                Name = x.Name,
+                Smiles = x.Smiles,
+                Unit = "Viên",
+                QuantityInStock = MinimumSeedMedicineStock,
+                MinimumStock = 10,
+                UnitPrice = EstimateMedicineUnitPrice(x.Name),
+                ExpiryDate = DateTime.Today.AddYears(2),
+                IsActive = true
+            })
+            .ToList();
+
+        if (medicines.Count == 0)
+        {
+            return;
+        }
+
+        db.Medicines.AddRange(medicines);
+        await db.SaveChangesAsync();
+    }
+
+    private static List<DrugSeedRow> ReadDrugSeedRows()
+    {
+        var path = ResolveDrugSeedPath();
+        if (path is null)
+        {
+            return [];
+        }
+
+        var rows = new List<DrugSeedRow>();
+        using var parser = new TextFieldParser(path, Encoding.UTF8)
+        {
+            TextFieldType = FieldType.Delimited,
+            HasFieldsEnclosedInQuotes = true,
+            TrimWhiteSpace = false
+        };
+        parser.SetDelimiters(",");
+
+        if (!parser.EndOfData)
+        {
+            parser.ReadFields();
+        }
+
+        while (!parser.EndOfData)
+        {
+            var fields = parser.ReadFields();
+            if (fields is null || fields.Length < 2)
+            {
+                continue;
+            }
+
+            var code = fields[0].Trim();
+            var name = fields[1].Trim();
+            var smiles = fields.Length > 2 ? fields[2].Trim() : "";
+            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            rows.Add(new DrugSeedRow(
+                code.Length > 40 ? code[..40] : code,
+                name.Length > 120 ? name[..120] : name,
+                smiles.Length > 2000 ? smiles[..2000] : smiles));
+        }
+
+        return rows;
+    }
+
+    private static string? ResolveDrugSeedPath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Data", "DrugInformation.seed.csv"),
+            Path.Combine(Directory.GetCurrentDirectory(), "Data", "DrugInformation.seed.csv"),
+            Path.Combine(Directory.GetCurrentDirectory(), "PhongKham", "Data", "DrugInformation.seed.csv")
+        };
+
+        return candidates.FirstOrDefault(File.Exists);
+    }
+
+    private sealed record DrugSeedRow(string Code, string Name, string Smiles);
 }

@@ -1,20 +1,14 @@
 @model List<InventoryTransaction>
 @{
     ViewData["Title"] = "Lịch sử nhập xuất kho";
+    ViewData["Subtitle"] = "Dòng thời gian nhập kho, cấp thuốc và biến động tồn.";
     var importCount = Model.Count(x => x.Quantity > 0);
     var exportCount = Model.Count(x => x.Quantity < 0);
     var netQuantity = Model.Sum(x => x.Quantity);
 }
 
-<div class="page-title pharmacist-page-title">
-    <div>
-        <span class="eyebrow">Kho dược</span>
-        <h1>Lịch sử nhập xuất kho</h1>
-        <div class="text-muted">Dòng thời gian nhập kho, cấp thuốc và biến động tồn.</div>
-    </div>
-    <div class="page-actions">
-        <a class="btn btn-primary" asp-action="InventoryReceipts">Tạo phiếu nhập</a>
-    </div>
+<div class="page-actions" style="margin-bottom:20px">
+    <a class="btn btn-primary" asp-action="InventoryReceipts">Tạo phiếu nhập</a>
 </div>
 
 <section class="pharmacy-command-grid medicine-kpis">

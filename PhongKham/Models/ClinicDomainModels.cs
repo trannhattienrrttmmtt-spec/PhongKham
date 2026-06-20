@@ -144,6 +144,15 @@ public class PrescriptionDetail
     public decimal LineTotal { get; set; }
 }
 
+public class PrescriptionMedicineInput
+{
+    public int MedicineId { get; set; }
+    public int Quantity { get; set; }
+    public string Dosage { get; set; } = "";
+    public string Route { get; set; } = "";
+    public string UsageInstruction { get; set; } = "";
+}
+
 public class Invoice : AuditableEntity
 {
     public int Id { get; set; }

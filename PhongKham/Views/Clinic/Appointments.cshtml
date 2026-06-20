@@ -11,12 +11,6 @@
     var isAdmin = User.IsInRole("Admin");
 }
 
-<div class="page-title">
-    <div>
-        <h1>@(isPatient ? "Lịch khám của tôi" : isDoctor ? "Lịch khám của bác sĩ" : "Quản lý lịch hẹn")</h1>
-    </div>
-</div>
-
 @if (!isDoctor)
 {
     <div class="panel">

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PhongKham.Data;
@@ -11,25 +12,41 @@ using System.Text;
 namespace PhongKham.Controllers;
 
 [Authorize]
-public class ClinicController(ClinicDbContext db, IDashboardService dashboardService) : Controller
+public class ClinicController(
+    ClinicDbContext db,
+    IDashboardService dashboardService,
+    UserManager<ApplicationUser> userManager,
+    RoleManager<IdentityRole> roleManager) : Controller
 {
     private static readonly string[] AppointmentStatuses =
     [
+        "Da dat lich",
+        "Da xac nhan",
+        "Dang cho",
+        "Dang kham",
+        "Hoan tat",
+        "Huy",
         "Đã đặt lịch",
         "Đã xác nhận",
         "Đang chờ",
         "Đang khám",
         "Hoàn tất",
-        "Hủy"
+        "Hủy",
+        "Đã hủy"
     ];
 
     private static readonly string[] DoctorStatusTransitions =
     [
+        "Dang kham",
+        "Hoan tat",
         "Đang khám",
         "Hoàn tất"
     ];
 
     private const int PrescriptionRowCount = 4;
+
+    private static bool IsWaitingForDoctor(string status)
+        => status is "Da xac nhan" or "Dang cho" or "Đã xác nhận" or "Đang chờ";
 
     public async Task<IActionResult> Dashboard()
     {
@@ -126,15 +143,82 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AddDoctor(Doctor doctor)
+    public async Task<IActionResult> AddDoctor(Doctor doctor, string email, string password)
     {
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid)
         {
-            await TryExecuteAsync(async () =>
+            return RedirectToAction(nameof(Doctors));
+        }
+
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+        {
+            TempData["DatabaseWarning"] = "Vui long nhap email va mat khau cho tai khoan bac si.";
+            return RedirectToAction(nameof(Doctors));
+        }
+
+        if (await userManager.FindByEmailAsync(email) is not null)
+        {
+            TempData["DatabaseWarning"] = "Email nay da co tai khoan trong he thong.";
+            return RedirectToAction(nameof(Doctors));
+        }
+
+        try
+        {
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
+                if (!await roleManager.RoleExistsAsync("BacSi"))
+                {
+                    var roleResult = await roleManager.CreateAsync(new IdentityRole("BacSi"));
+                    if (!roleResult.Succeeded)
+                    {
+                        TempData["DatabaseWarning"] = string.Join(" ", roleResult.Errors.Select(x => x.Description));
+                        return;
+                    }
+                }
+
+                await using var transaction = await db.Database.BeginTransactionAsync();
+                var user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true,
+                    PhoneNumber = doctor.Phone,
+                    FullName = doctor.FullName,
+                    StaffCode = "BacSi"
+                };
+
+                var createResult = await userManager.CreateAsync(user, password);
+                if (!createResult.Succeeded)
+                {
+                    TempData["DatabaseWarning"] = string.Join(" ", createResult.Errors.Select(x => x.Description));
+                    return;
+                }
+
+                var addRoleResult = await userManager.AddToRoleAsync(user, "BacSi");
+                if (!addRoleResult.Succeeded)
+                {
+                    TempData["DatabaseWarning"] = string.Join(" ", addRoleResult.Errors.Select(x => x.Description));
+                    return;
+                }
+
+                doctor.AccountEmail = email;
                 db.Doctors.Add(doctor);
+                db.UserAccounts.Add(new UserAccount
+                {
+                    UserName = email,
+                    DisplayName = doctor.FullName,
+                    Role = "BacSi",
+                    IsActive = true
+                });
                 await db.SaveChangesAsync();
+                await transaction.CommitAsync();
+                TempData["SuccessMessage"] = "Đã tạo bác sĩ và tài khoản đăng nhập.";
             });
+        }
+        catch (Exception ex)
+        {
+            TempData["DatabaseWarning"] = DatabaseWarning(ex);
         }
 
         return RedirectToAction(nameof(Doctors));
@@ -273,7 +357,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             {
                 if (await HasDoctorConflictAsync(appointment.DoctorId, appointment.AppointmentTime))
                 {
-                    TempData["DatabaseWarning"] = "BÃ¡c sÄ© Ä‘Ã£ cÃ³ lá»‹ch trong khung giá» nÃ y. Vui lÃ²ng chá»n giá» khÃ¡c.";
+                    TempData["DatabaseWarning"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
                     return;
                 }
 
@@ -290,7 +374,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                     ServiceFee = 0,
                     Discount = 0,
                     TotalAmount = appointment.Fee,
-                    PaymentStatus = appointment.Status is "Há»§y" or "ÄÃ£ há»§y" ? "Cancelled" : "Unpaid",
+                    PaymentStatus = appointment.Status is "Hủy" or "Đã hủy" ? "Cancelled" : "Unpaid",
                     CreatedBy = User.Identity?.Name ?? ""
                 });
                 await db.SaveChangesAsync();
@@ -429,7 +513,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == id);
             if (medicine is null || quantity == 0 || medicine.QuantityInStock + quantity < 0)
             {
-                TempData["DatabaseWarning"] = "Sá»‘ lÆ°á»£ng Ä‘iá»u chá»‰nh khÃ´ng há»£p lá»‡ hoáº·c vÆ°á»£t quÃ¡ tá»“n kho.";
+                TempData["DatabaseWarning"] = "Số lượng điều chỉnh không hợp lệ hoặc vượt quá tồn kho.";
                 return;
             }
 
@@ -439,11 +523,11 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
                 MedicineId = medicine.Id,
                 TransactionType = quantity > 0 ? "Import" : "Export",
                 Quantity = Math.Abs(quantity),
-                ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Äiá»u chá»‰nh thá»§ cÃ´ng" : reason.Trim(),
+                ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Điều chỉnh thủ công" : reason.Trim(),
                 CreatedBy = User.Identity?.Name ?? ""
             });
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = "ÄÃ£ cáº­p nháº­t tá»“n kho.";
+            TempData["SuccessMessage"] = "Đã cập nhật tồn kho.";
         });
 
         return RedirectToAction(nameof(Medicines));
@@ -530,70 +614,74 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
         await TryExecuteAsync(async () =>
         {
-            var medicine = await db.Medicines.FindAsync(medicineId);
-            if (medicine is null || !medicine.IsActive)
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
             {
-                TempData["DatabaseWarning"] = "Khong tim thay thuoc dang su dung de nhap kho.";
-                return;
-            }
+                var medicine = await db.Medicines.FindAsync(medicineId);
+                if (medicine is null || !medicine.IsActive)
+                {
+                    TempData["DatabaseWarning"] = "Khong tim thay thuoc dang su dung de nhap kho.";
+                    return;
+                }
 
-            await using var tx = await db.Database.BeginTransactionAsync();
-            var code = string.IsNullOrWhiteSpace(receiptCode) ? $"PN{DateTime.Now:yyyyMMddHHmmss}" : receiptCode.Trim();
-            var safeCost = Math.Max(0, unitCost);
-            var lineTotal = safeCost * quantity;
-            var lotExpiry = expiryDate ?? medicine.ExpiryDate;
-            var receivedAt = receiptDate ?? DateTime.Now;
-            var receipt = new InventoryReceipt
-            {
-                ReceiptCode = code,
-                ReceiptDate = receivedAt,
-                TotalAmount = lineTotal,
-                CreatedBy = User.Identity?.Name ?? "",
-                Details =
-                [
-                    new()
-                    {
-                        MedicineId = medicine.Id,
-                        Quantity = quantity,
-                        UnitCost = safeCost,
-                        LineTotal = lineTotal
-                    }
-                ]
-            };
+                await using var tx = await db.Database.BeginTransactionAsync();
+                var code = string.IsNullOrWhiteSpace(receiptCode) ? $"PN{DateTime.Now:yyyyMMddHHmmss}" : receiptCode.Trim();
+                var safeCost = Math.Max(0, unitCost);
+                var lineTotal = safeCost * quantity;
+                var lotExpiry = expiryDate ?? medicine.ExpiryDate;
+                var receivedAt = receiptDate ?? DateTime.Now;
+                var receipt = new InventoryReceipt
+                {
+                    ReceiptCode = code,
+                    ReceiptDate = receivedAt,
+                    TotalAmount = lineTotal,
+                    CreatedBy = User.Identity?.Name ?? "",
+                    Details =
+                    [
+                        new()
+                        {
+                            MedicineId = medicine.Id,
+                            Quantity = quantity,
+                            UnitCost = safeCost,
+                            LineTotal = lineTotal
+                        }
+                    ]
+                };
 
-            medicine.QuantityInStock += quantity;
-            if (lotExpiry > medicine.ExpiryDate)
-            {
-                medicine.ExpiryDate = lotExpiry;
-            }
+                medicine.QuantityInStock += quantity;
+                if (lotExpiry > medicine.ExpiryDate)
+                {
+                    medicine.ExpiryDate = lotExpiry;
+                }
 
-            db.InventoryReceipts.Add(receipt);
-            var lotCode = string.IsNullOrWhiteSpace(batchNumber) ? $"{code}-{medicine.Id}" : batchNumber.Trim();
-            var lot = new InventoryLot
-            {
-                MedicineId = medicine.Id,
-                BatchNumber = lotCode,
-                ReceiptCode = code,
-                QuantityReceived = quantity,
-                QuantityRemaining = quantity,
-                UnitCost = safeCost,
-                ExpiryDate = lotExpiry,
-                ReceivedAt = receivedAt,
-                CreatedBy = User.Identity?.Name ?? ""
-            };
-            db.InventoryLots.Add(lot);
-            db.InventoryTransactions.Add(new InventoryTransaction
-            {
-                MedicineId = medicine.Id,
-                InventoryLot = lot,
-                TransactionType = "Import",
-                Quantity = quantity,
-                ReferenceCode = code,
-                CreatedBy = User.Identity?.Name ?? ""
+                db.InventoryReceipts.Add(receipt);
+                var lotCode = string.IsNullOrWhiteSpace(batchNumber) ? $"{code}-{medicine.Id}" : batchNumber.Trim();
+                var lot = new InventoryLot
+                {
+                    MedicineId = medicine.Id,
+                    BatchNumber = lotCode,
+                    ReceiptCode = code,
+                    QuantityReceived = quantity,
+                    QuantityRemaining = quantity,
+                    UnitCost = safeCost,
+                    ExpiryDate = lotExpiry,
+                    ReceivedAt = receivedAt,
+                    CreatedBy = User.Identity?.Name ?? ""
+                };
+                db.InventoryLots.Add(lot);
+                db.InventoryTransactions.Add(new InventoryTransaction
+                {
+                    MedicineId = medicine.Id,
+                    InventoryLot = lot,
+                    TransactionType = "Import",
+                    Quantity = quantity,
+                    ReferenceCode = code,
+                    CreatedBy = User.Identity?.Name ?? ""
+                });
+                AddAudit("ImportStock", nameof(InventoryReceipt), code, $"Import {quantity} {medicine.Unit} {medicine.Name}");
+                await db.SaveChangesAsync();
+                await tx.CommitAsync();
             });
-            AddAudit("ImportStock", nameof(InventoryReceipt), code, $"Import {quantity} {medicine.Unit} {medicine.Name}");
-            await db.SaveChangesAsync();
-            await tx.CommitAsync();
         });
 
         return RedirectToAction(nameof(InventoryReceipts));
@@ -619,10 +707,14 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     [Authorize(Roles = "Admin,DuocSi")]
     public async Task<IActionResult> ExpiryAlerts()
     {
-        var horizon = DateTime.Today.AddMonths(6);
+        var horizon = DateTime.Today.AddMonths(12);
         return View(await TryLoad(
-            () => db.Medicines.Where(x => x.ExpiryDate <= horizon).OrderBy(x => x.ExpiryDate).ToListAsync(),
-            () => DemoMedicines().Where(x => x.ExpiryDate <= horizon).OrderBy(x => x.ExpiryDate).ToList()));
+            () => db.InventoryLots.Include(x => x.Medicine)
+                .Where(x => x.QuantityRemaining > 0 && !x.IsClosed && x.ExpiryDate <= horizon)
+                .OrderBy(x => x.ExpiryDate)
+                .ThenBy(x => x.Medicine!.Name)
+                .ToListAsync(),
+            () => new List<InventoryLot>()));
     }
 
     [Authorize(Roles = "Admin,DuocSi")]
@@ -859,6 +951,9 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
     {
         await TryExecuteAsync(async () =>
         {
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
             var prescription = await db.Prescriptions
                 .Include(x => x.Details)
                 .ThenInclude(x => x.Medicine)
@@ -969,6 +1064,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             AddAudit("DispensePrescription", nameof(Prescription), prescription.Id.ToString(), $"Dispense {prescription.PrescriptionCode}");
             await db.SaveChangesAsync();
             await tx.CommitAsync();
+            });
         });
 
         return RedirectToAction(nameof(Prescriptions));
@@ -1099,7 +1195,7 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
             entity.Diagnosis = form.Diagnosis.Trim();
             entity.TreatmentPlan = form.TreatmentPlan.Trim();
 
-            if (appointment is not null && appointment.Status is "Đã xác nhận" or "Đang chờ")
+            if (appointment is not null && IsWaitingForDoctor(appointment.Status))
             {
                 appointment.Status = "Đang khám";
             }
@@ -1220,8 +1316,8 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
         var to = appointmentTime.AddMinutes(29);
         return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
             && x.Id != excludeId
-            && x.Status != "Há»§y"
-            && x.Status != "ÄÃ£ há»§y"
+            && x.Status != "Hủy"
+            && x.Status != "Đã hủy"
             && x.AppointmentTime >= from
             && x.AppointmentTime <= to);
     }
@@ -1774,70 +1870,91 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
         foreach (var item in items)
         {
+            var dosage = item.Dosage?.Trim();
+            var route = item.Route?.Trim();
+            var usageInstruction = item.UsageInstruction?.Trim();
+            var itemHasErrors = false;
+
             if (!item.MedicineId.HasValue)
             {
                 errors.Add("Mỗi dòng thuốc cần chọn thuốc cụ thể.");
+                itemHasErrors = true;
                 continue;
             }
 
             if (!medicines.TryGetValue(item.MedicineId.Value, out var medicine))
             {
                 errors.Add("Có thuốc trong đơn không còn tồn tại.");
+                itemHasErrors = true;
                 continue;
             }
 
             if (!medicine.IsActive)
             {
                 errors.Add($"Thuoc {medicine.Name} dang ngung su dung.");
+                itemHasErrors = true;
             }
 
             if (!selectedMedicineIds.Add(medicine.Id))
             {
                 errors.Add($"Thuốc {medicine.Name} đang bị nhập lặp.");
+                itemHasErrors = true;
             }
 
             if (item.Quantity <= 0)
             {
                 errors.Add($"Thuốc {medicine.Name} cần số lượng lớn hơn 0.");
+                itemHasErrors = true;
             }
 
-            if (string.IsNullOrWhiteSpace(item.Dosage))
+            if (string.IsNullOrWhiteSpace(dosage))
             {
                 errors.Add($"Thuốc {medicine.Name} cần nhập liều dùng.");
+                itemHasErrors = true;
             }
 
-            if (string.IsNullOrWhiteSpace(item.Route))
+            if (string.IsNullOrWhiteSpace(route))
             {
                 errors.Add($"Thuốc {medicine.Name} cần nhập đường dùng.");
+                itemHasErrors = true;
             }
 
-            if (string.IsNullOrWhiteSpace(item.UsageInstruction))
+            if (string.IsNullOrWhiteSpace(usageInstruction))
             {
                 errors.Add($"Thuốc {medicine.Name} cần nhập hướng dẫn sử dụng.");
+                itemHasErrors = true;
             }
 
             if (medicine.QuantityInStock < item.Quantity)
             {
                 errors.Add($"Thuốc {medicine.Name} không đủ tồn kho. Còn {medicine.QuantityInStock} {medicine.Unit}.");
+                itemHasErrors = true;
             }
 
             if (medicine.ExpiryDate.Date < DateTime.Today)
             {
                 errors.Add($"Thuốc {medicine.Name} đã hết hạn.");
+                itemHasErrors = true;
             }
 
             if (HasAllergyWarning(patient?.AllergyNotes, medicine.Name))
             {
                 errors.Add($"Bệnh nhân có cảnh báo dị ứng với thuốc {medicine.Name}.");
+                itemHasErrors = true;
+            }
+
+            if (itemHasErrors)
+            {
+                continue;
             }
 
             details.Add(new PrescriptionDetail
             {
                 MedicineId = medicine.Id,
                 Quantity = item.Quantity,
-                Dosage = item.Dosage.Trim(),
-                Route = item.Route.Trim(),
-                UsageInstruction = item.UsageInstruction.Trim(),
+                Dosage = dosage!,
+                Route = route!,
+                UsageInstruction = usageInstruction!,
                 UnitPrice = medicine.UnitPrice,
                 LineTotal = medicine.UnitPrice * item.Quantity
             });
@@ -1939,9 +2056,9 @@ public class ClinicController(ClinicDbContext db, IDashboardService dashboardSer
 
     private static List<Medicine> DemoMedicines() =>
     [
-        new() { Id = 1, Name = "Amoxicillin 500mg", Unit = "Vien", QuantityInStock = 80, UnitPrice = 2500, ExpiryDate = DateTime.Today.AddMonths(10) },
-        new() { Id = 2, Name = "Nuoc muoi sinh ly", Unit = "Chai", QuantityInStock = 18, UnitPrice = 9000, ExpiryDate = DateTime.Today.AddMonths(8) },
-        new() { Id = 3, Name = "Paracetamol 500mg", Unit = "Vien", QuantityInStock = 240, UnitPrice = 1200, ExpiryDate = DateTime.Today.AddMonths(18) }
+        new() { Id = 1, Name = "Amoxicillin 500mg", Unit = "Vien", QuantityInStock = 150, UnitPrice = 25000, ExpiryDate = DateTime.Today.AddMonths(10) },
+        new() { Id = 2, Name = "Nuoc muoi sinh ly", Unit = "Chai", QuantityInStock = 150, UnitPrice = 30000, ExpiryDate = DateTime.Today.AddMonths(8) },
+        new() { Id = 3, Name = "Paracetamol 500mg", Unit = "Vien", QuantityInStock = 240, UnitPrice = 12000, ExpiryDate = DateTime.Today.AddMonths(18) }
     ];
 
     private static List<Appointment> DemoAppointments()

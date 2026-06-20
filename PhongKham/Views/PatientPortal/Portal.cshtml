@@ -12,7 +12,7 @@
         "History" => "Lịch sử khám bệnh",
         "Payments" => "Thanh toán",
         "Notifications" => "Thông báo",
-        "Chat" => "Chat với phòng khám",
+        "Chat" => "Chat với trợ lý AI",
         _ => "Cổng bệnh nhân"
     };
     ViewData["Title"] = title;
@@ -383,10 +383,10 @@ else if (Model.Page == "Notifications")
 }
 else if (Model.Page == "Chat")
 {
-    <div class="portal-page-head"><div><span class="portal-kicker">Hỗ trợ trực tuyến</span><h1>Chat với phòng khám</h1><p>Đội ngũ An Tâm sẵn sàng hỗ trợ bạn trong giờ làm việc.</p></div></div>
+    <div class="portal-page-head"><div><span class="portal-kicker">Trợ lý AI</span><h1>Chat với trợ lý AI</h1><p>Hỏi nhanh về đặt lịch, thanh toán, chuẩn bị đi khám và thông tin sức khỏe tham khảo.</p></div></div>
     <div class="chat-shell portal-card">
-        <aside class="conversation-list"><div class="conversation-search"><input class="form-control" value="Phòng khám An Tâm" readonly/></div><div class="conversation active"><span class="chat-avatar">AT</span><div><strong>Nhóm hỗ trợ An Tâm</strong><p>Admin và nhân viên phòng khám</p></div><small>Trực tuyến</small></div></aside>
-        <section class="chat-panel"><header class="chat-header"><div class="chat-avatar">AT</div><div><h2>Phòng Khám An Tâm</h2><span><i></i> Đang trực tuyến · Phản hồi trong vài phút</span></div></header><div class="chat-messages" data-chat-messages><div class="day-divider">Hôm nay</div><div class="message incoming"><p>Xin chào @Model.Patient.FullName, An Tâm có thể hỗ trợ gì cho bạn hôm nay?</p><small>Hỗ trợ tự động</small></div>@foreach(var chat in Model.ChatMessages){var parts = chat.Description.Split('\n', 2);<div class="message @(chat.Action == "AdminReply" ? "incoming" : "outgoing")">@if(!string.IsNullOrWhiteSpace(parts[0]) && !parts[0].StartsWith("/uploads/")){<p>@parts[0]</p>}@if(parts.Length > 1 && parts[1].StartsWith("/uploads/")){<img class="chat-image" src="@parts[1]" alt="Ảnh đã gửi"/>}else if(parts[0].StartsWith("/uploads/")){<img class="chat-image" src="@parts[0]" alt="Ảnh đã gửi"/>}<small>@chat.CreatedAt.ToString("HH:mm")</small></div>}</div><form asp-action="SendChatMessage" method="post" enctype="multipart/form-data" class="chat-composer"><label class="chat-upload" title="Gửi hình ảnh">＋<input type="file" name="image" accept="image/png,image/jpeg,image/webp" hidden/></label><input name="message" placeholder="Nhập tin nhắn..."/><button class="send-button">Gửi</button></form></section>
+        <aside class="conversation-list"><div class="conversation-search"><input class="form-control" value="AI An Tâm" readonly/></div><div class="conversation active"><span class="chat-avatar">AI</span><div><strong>Trợ lý AI An Tâm</strong><p>Hỗ trợ tự động 24/7</p></div><small>Trực tuyến</small></div></aside>
+        <section class="chat-panel"><header class="chat-header"><div class="chat-avatar">AI</div><div><h2>Trợ lý AI An Tâm</h2><span><i></i> Đang trực tuyến · Phản hồi tự động</span></div></header><div class="chat-messages" data-chat-messages><div class="day-divider">Hôm nay</div><div class="message incoming"><p>Xin chào @Model.Patient.FullName, tôi là trợ lý AI của An Tâm. Bạn muốn hỏi gì hôm nay?</p><small>Trợ lý AI</small></div>@foreach(var chat in Model.ChatMessages){var parts = chat.Description.Split('\n', 2);var isIncoming = chat.Action == "AdminReply" || chat.Action == "AiReply";<div class="message @(isIncoming ? "incoming" : "outgoing")">@if(!string.IsNullOrWhiteSpace(parts[0]) && !parts[0].StartsWith("/uploads/")){<p>@parts[0]</p>}@if(parts.Length > 1 && parts[1].StartsWith("/uploads/")){<img class="chat-image" src="@parts[1]" alt="Ảnh đã gửi"/>}else if(parts[0].StartsWith("/uploads/")){<img class="chat-image" src="@parts[0]" alt="Ảnh đã gửi"/>}<small>@(chat.Action == "AiReply" ? "AI · " : "")@chat.CreatedAt.ToString("HH:mm")</small></div>}</div><form asp-action="SendChatMessage" method="post" enctype="multipart/form-data" class="chat-composer"><label class="chat-upload" title="Gửi hình ảnh">＋<input type="file" name="image" accept="image/png,image/jpeg,image/webp" hidden/></label><input name="message" placeholder="Nhập câu hỏi cho trợ lý AI..."/><button class="send-button">Gửi</button></form></section>
     </div>
 }
 

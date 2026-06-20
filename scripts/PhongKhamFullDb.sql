@@ -618,9 +618,13 @@ BEGIN
     (N'P301', N'Cấp cứu', 6, 2, N'Ưu tiên');
 
     INSERT INTO [dbo].[Medicines] ([Name], [Unit], [QuantityInStock], [UnitPrice], [ExpiryDate]) VALUES
-    (N'Paracetamol 500mg', N'Viên', 240, 1200, DATEADD(month, 18, GETDATE())),
-    (N'Amoxicillin 500mg', N'Viên', 80, 2500, DATEADD(month, 10, GETDATE())),
-    (N'Nước muối sinh lý', N'Chai', 18, 9000, DATEADD(month, 8, GETDATE()));
+    (N'Paracetamol 500mg', N'Viên', 240, 12000, DATEADD(month, 18, GETDATE())),
+    (N'Amoxicillin 500mg', N'Viên', 150, 25000, DATEADD(month, 10, GETDATE())),
+    (N'Nước muối sinh lý', N'Chai', 150, 30000, DATEADD(month, 8, GETDATE()));
+
+    UPDATE [dbo].[Medicines]
+    SET [QuantityInStock] = 101
+    WHERE [QuantityInStock] <= 100;
 
     INSERT INTO [dbo].[UserAccounts] ([UserName], [DisplayName], [Role], [IsActive]) VALUES
     (N'admin', N'Quản trị hệ thống', N'Quản trị', 1),
@@ -692,6 +696,51 @@ BEGIN
         (2, 3, 3, N'1 chai x 3 lần/ngày', N'Súc họng', N'Sau khi đánh răng', 9000, 27000);
     END
 END
+GO
+
+UPDATE [dbo].[Medicines]
+SET [QuantityInStock] = 101
+WHERE [QuantityInStock] <= 100;
+GO
+
+UPDATE [dbo].[Medicines]
+SET [UnitPrice] = CASE
+    WHEN LOWER([Name]) LIKE N'%insulin%'
+      OR LOWER([Name]) LIKE N'%interferon%'
+      OR LOWER([Name]) LIKE N'%immunoglobulin%'
+      OR LOWER([Name]) LIKE N'%mab%' THEN 500000
+    WHEN LOWER([Name]) LIKE N'%fentanyl%'
+      OR LOWER([Name]) LIKE N'%alfentanil%'
+      OR LOWER([Name]) LIKE N'%morphine%'
+      OR LOWER([Name]) LIKE N'%ketamine%'
+      OR LOWER([Name]) LIKE N'%codeine%' THEN 150000
+    WHEN LOWER([Name]) LIKE N'%cillin%'
+      OR LOWER([Name]) LIKE N'%cycline%'
+      OR LOWER([Name]) LIKE N'%mycin%'
+      OR LOWER([Name]) LIKE N'%vir%'
+      OR LOWER([Name]) LIKE N'%azole%' THEN 35000
+    WHEN LOWER([Name]) LIKE N'%acid%'
+      OR LOWER([Name]) LIKE N'%ate%'
+      OR LOWER([Name]) LIKE N'%ide%'
+      OR LOWER([Name]) LIKE N'%ine%' THEN 20000
+    ELSE 15000
+END
+WHERE [UnitPrice] < 12000;
+GO
+
+UPDATE lots
+SET lots.[UnitCost] = medicines.[UnitPrice]
+FROM [dbo].[InventoryLots] lots
+INNER JOIN [dbo].[Medicines] medicines ON medicines.[Id] = lots.[MedicineId]
+WHERE lots.[UnitCost] <= 0 AND medicines.[UnitPrice] > 0;
+GO
+
+UPDATE details
+SET details.[UnitPrice] = medicines.[UnitPrice],
+    details.[LineTotal] = medicines.[UnitPrice] * details.[Quantity]
+FROM [dbo].[PrescriptionDetails] details
+INNER JOIN [dbo].[Medicines] medicines ON medicines.[Id] = details.[MedicineId]
+WHERE details.[UnitPrice] <= 0 AND medicines.[UnitPrice] > 0;
 GO
 
 PRINT N'Da tao xong database PhongKhamFullDb. Chay web lan dau de tao tai khoan dang nhap mau.';

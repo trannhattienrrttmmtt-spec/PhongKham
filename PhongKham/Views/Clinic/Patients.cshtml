@@ -1,13 +1,8 @@
 @model List<Patient>
 @{
     ViewData["Title"] = "Hồ sơ bệnh nhân";
+    ViewData["Subtitle"] = "Tiếp nhận, tra cứu và cập nhật thông tin hành chính của bệnh nhân.";
 }
-<div class="page-title">
-    <div>
-        <h1>Hồ sơ bệnh nhân</h1>
-        <div class="text-muted">Tiếp nhận, tra cứu và cập nhật thông tin hành chính của bệnh nhân.</div>
-    </div>
-</div>
 <div class="panel compact-panel">
     <form asp-action="Patients" method="get" class="admin-filter-bar">
         <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Tìm họ tên, điện thoại, BHYT hoặc địa chỉ..." />

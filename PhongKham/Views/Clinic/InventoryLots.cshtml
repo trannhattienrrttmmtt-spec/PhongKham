@@ -1,21 +1,15 @@
 @model List<InventoryLot>
 @{
     ViewData["Title"] = "Lo thuoc";
+    ViewData["Subtitle"] = "Theo doi so lo, han dung va ton con lai de cap thuoc theo lo gan het han truoc.";
     var activeLots = Model.Count(x => x.QuantityRemaining > 0 && !x.IsClosed);
     var expiring = Model.Count(x => x.QuantityRemaining > 0 && x.ExpiryDate <= DateTime.Today.AddMonths(3));
     var expired = Model.Count(x => x.QuantityRemaining > 0 && x.ExpiryDate.Date < DateTime.Today);
 }
 
-<div class="page-title pharmacist-page-title">
-    <div>
-        <span class="eyebrow">Kho duoc</span>
-        <h1>Quan ly lo thuoc</h1>
-        <div class="text-muted">Theo doi so lo, han dung va ton con lai de cap thuoc theo lo gan het han truoc.</div>
-    </div>
-    <div class="page-actions">
-        <a class="btn btn-outline-primary" asp-action="InventoryReceipts">Phieu nhap kho</a>
-        <a class="btn btn-primary" asp-action="Prescriptions">Cap thuoc</a>
-    </div>
+<div class="page-actions" style="margin-bottom:20px">
+    <a class="btn btn-outline-primary" asp-action="InventoryReceipts">Phieu nhap kho</a>
+    <a class="btn btn-primary" asp-action="Prescriptions">Cap thuoc</a>
 </div>
 
 <section class="pharmacy-command-grid medicine-kpis">
