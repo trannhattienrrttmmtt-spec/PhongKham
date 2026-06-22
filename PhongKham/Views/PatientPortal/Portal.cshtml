@@ -241,6 +241,22 @@ else if (Model.Page == "Results")
     {
         <div class="portal-card portal-empty"><strong>Chưa có kết quả khám</strong><span>Kết quả sẽ xuất hiện sau khi bác sĩ hoàn tất buổi khám.</span><a asp-action="Book" class="btn btn-primary">Đặt lịch khám</a></div>
     }
+    <section class="portal-section">
+        <div class="section-heading"><div><span class="portal-kicker">Điều trị</span><h2>Đơn thuốc liên quan</h2></div><button type="button" class="btn btn-outline-primary" data-print-page>In trang này</button></div>
+        @foreach (var prescription in Model.Prescriptions)
+        {
+            var details = Model.PrescriptionDetails.Where(x => x.PrescriptionId == prescription.Id).ToList();
+            <article class="portal-card prescription-card">
+                <div class="prescription-head"><div><span>ĐƠN THUỐC #DT-@prescription.Id.ToString("D5")</span><h2>@prescription.Diagnosis</h2><p>@prescription.Doctor?.FullName · @prescription.CreatedAt.ToString("dd/MM/yyyy")</p></div><div class="prescription-actions"><span class="status-pill">@(details.Any() ? "Đang sử dụng" : "Chờ kê thuốc")</span>@if(details.Any()){<a class="btn btn-sm btn-outline-primary" asp-action="DownloadPrescriptionPdf" asp-route-id="@prescription.Id">Tải PDF</a>}</div></div>
+                <div class="table-responsive"><table class="table portal-table"><thead><tr><th>Thuốc</th><th>Liều dùng</th><th>Số lần uống</th><th>Thời gian</th><th>Số lượng</th></tr></thead><tbody>
+                @if(details.Any()){foreach(var detail in details){<tr><td><strong>@detail.Medicine?.Name</strong></td><td>@detail.Dosage</td><td>@detail.Route</td><td>@detail.UsageInstruction</td><td>@detail.Quantity @detail.Medicine?.Unit</td></tr>}}
+                else{<tr><td colspan="5"><div class="prescription-empty"><strong>Chưa có thuốc trong đơn</strong><span>Bác sĩ chưa chọn thuốc, liều dùng và thời gian sử dụng.</span></div></td></tr>}
+                </tbody></table></div>
+                <div class="doctor-note"><span>Ghi chú của bác sĩ</span><p>@prescription.Instructions</p></div>
+            </article>
+        }
+        @if(!Model.Prescriptions.Any()){<div class="portal-card portal-empty"><strong>Chưa có đơn thuốc</strong><span>Đơn thuốc sẽ được cập nhật sau khi bác sĩ kê toa.</span></div>}
+    </section>
 }
 else if (Model.Page == "ResultDetail")
 {
@@ -333,7 +349,7 @@ else if (Model.Page == "Payments")
                             <span>Vietcombank · 1033441701</span>
                             <strong>NGUYEN ANH VU</strong>
                         </div>
-                        <div class="qr-transfer-info">
+                        <div class="qr-transfer-info compact">
                             <div><span>Số tiền</span><strong>@invoice.TotalAmount.ToString("N0") đ</strong></div>
                             <div><span>Nội dung</span><strong>@invoice.InvoiceCode</strong></div>
                         </div>

@@ -151,6 +151,61 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatMessages = document.querySelector("[data-chat-messages]");
   if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 
+  const floatingChat = document.querySelector("[data-floating-chat]");
+  if (floatingChat) {
+    const toggle = floatingChat.querySelector("[data-chat-toggle]");
+    const close = floatingChat.querySelector("[data-chat-close]");
+    const panel = floatingChat.querySelector(".floating-chat-panel");
+    const form = floatingChat.querySelector("[data-floating-chat-form]");
+    const input = form?.querySelector('input[name="message"]');
+    const messages = floatingChat.querySelector("[data-floating-chat-messages]");
+
+    const setOpen = open => {
+      panel.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      if (open) input?.focus();
+    };
+
+    const appendMessage = (text, type, label) => {
+      const item = document.createElement("div");
+      item.className = `message ${type}`;
+      const body = document.createElement("p");
+      body.textContent = text;
+      const meta = document.createElement("small");
+      meta.textContent = label;
+      item.append(body, meta);
+      messages.appendChild(item);
+      messages.scrollTop = messages.scrollHeight;
+      return item;
+    };
+
+    toggle.addEventListener("click", () => setOpen(panel.hidden));
+    close.addEventListener("click", () => setOpen(false));
+
+    form?.addEventListener("submit", async event => {
+      event.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      appendMessage(text, "outgoing", "Bạn");
+      const formData = new FormData(form);
+      formData.set("message", text);
+      input.value = "";
+      const pending = appendMessage("Đang trả lời...", "incoming", "AI");
+
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          body: formData,
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        const data = await response.json();
+        pending.querySelector("p").textContent = data.reply || "Tôi chưa thể trả lời lúc này. Bạn thử lại sau nhé.";
+      } catch {
+        pending.querySelector("p").textContent = "Kết nối chat đang gián đoạn. Bạn thử lại sau nhé.";
+      }
+    });
+  }
+
   const adminChatMessages = document.querySelector("[data-admin-chat-messages]");
   if (adminChatMessages) adminChatMessages.scrollTop = adminChatMessages.scrollHeight;
 

@@ -21,6 +21,8 @@
     var isDoctor = User.IsInRole("BacSi");
     var isPharmacist = User.IsInRole("DuocSi");
     var isPatient = User.IsInRole("BenhNhan");
+    var displayName = User.Identity?.Name ?? "User";
+    var avatarInitial = displayName.Trim().Length > 0 ? displayName.Trim()[0] : 'U';
     var roleText = isAdmin ? "Admin" : isDoctor ? "Bác sĩ" : isPharmacist ? "Dược sĩ" : isPatient ? "Bệnh nhân" : "Người dùng";
 
     <div class="app-frame">
@@ -37,15 +39,10 @@
                 @if (isPatient)
                 {
                     <a asp-controller="PatientPortal" asp-action="Home" class="@(currentAction == "Home" ? "active" : "")"><i class="nav-icon bi bi-house-heart-fill"></i><span class="nav-label">Trang chủ</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Profile"><i class="nav-icon bi bi-person-vcard-fill"></i><span class="nav-label">Hồ sơ cá nhân</span></a>
                     <a asp-controller="PatientPortal" asp-action="Book"><i class="nav-icon bi bi-calendar-plus-fill"></i><span class="nav-label">Đặt lịch khám</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Appointments"><i class="nav-icon bi bi-calendar3"></i><span class="nav-label">Lịch khám</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Results"><i class="nav-icon bi bi-clipboard2-pulse-fill"></i><span class="nav-label">Kết quả khám</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Prescriptions"><i class="nav-icon bi bi-file-earmark-medical-fill"></i><span class="nav-label">Đơn thuốc</span></a>
-                    <a asp-controller="PatientPortal" asp-action="History"><i class="nav-icon bi bi-clock-history"></i><span class="nav-label">Lịch sử khám</span></a>
+                    <a asp-controller="PatientPortal" asp-action="Appointments" class="@(currentAction is "Appointments" or "AppointmentDetail" or "EditAppointment" ? "active" : "")"><i class="nav-icon bi bi-calendar3"></i><span class="nav-label">Lịch khám</span></a>
+                    <a asp-controller="PatientPortal" asp-action="Results" class="@(currentAction is "Results" or "ResultDetail" ? "active" : "")"><i class="nav-icon bi bi-clipboard2-pulse-fill"></i><span class="nav-label">Hồ sơ khám & thuốc</span></a>
                     <a asp-controller="PatientPortal" asp-action="Payments"><i class="nav-icon bi bi-qr-code"></i><span class="nav-label">Thanh toán</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Notifications"><i class="nav-icon bi bi-bell-fill"></i><span class="nav-label">Thông báo</span></a>
-                    <a asp-controller="PatientPortal" asp-action="Chat"><i class="nav-icon bi bi-chat-dots-fill"></i><span class="nav-label">Chat</span></a>
                 }
                 else
                 {
@@ -58,7 +55,6 @@
                     @if (isAdmin)
                     {
                         <a asp-controller="Clinic" asp-action="Doctors" class="@(currentAction == "Doctors" ? "active" : "")"><i class="nav-icon bi bi-person-badge-fill"></i><span class="nav-label">Bác sĩ</span></a>
-                        <a asp-controller="Clinic" asp-action="Rooms" class="@(currentAction == "Rooms" ? "active" : "")"><i class="nav-icon bi bi-door-closed-fill"></i><span class="nav-label">Phòng bệnh</span></a>
                     }
                     @if (isAdmin || isDoctor)
                     {
@@ -66,12 +62,14 @@
                     }
                     @if (isAdmin || isPharmacist)
                     {
-                        <a asp-controller="Clinic" asp-action="Medicines" class="@(currentAction == "Medicines" ? "active" : "")"><i class="nav-icon bi bi-capsule"></i><span class="nav-label">Kho thuốc</span></a>
-                        <a asp-controller="Clinic" asp-action="InventoryReceipts" class="@(currentAction == "InventoryReceipts" ? "active" : "")"><i class="nav-icon bi bi-box-arrow-in-down"></i><span class="nav-label">Phiếu nhập</span></a>
-                        <a asp-controller="Clinic" asp-action="InventoryLots" class="@(currentAction == "InventoryLots" ? "active" : "")"><i class="nav-icon bi bi-boxes"></i><span class="nav-label">Lô thuốc</span></a>
-                        <a asp-controller="Clinic" asp-action="InventoryTransactions" class="@(currentAction == "InventoryTransactions" ? "active" : "")"><i class="nav-icon bi bi-clock-history"></i><span class="nav-label">Lịch sử kho</span></a>
-                        <a asp-controller="Clinic" asp-action="ExpiryAlerts" class="@(currentAction == "ExpiryAlerts" ? "active" : "")"><i class="nav-icon bi bi-exclamation-octagon-fill"></i><span class="nav-label">Cảnh báo hạn</span></a>
-                        <a asp-controller="Clinic" asp-action="AuditLogs" class="@(currentAction == "AuditLogs" ? "active" : "")"><i class="nav-icon bi bi-shield-check"></i><span class="nav-label">Nhật ký</span></a>
+                        <a asp-controller="Clinic" asp-action="Medicines" class="@(currentAction is "Medicines" or "InventoryReceipts" or "InventoryLots" or "InventoryTransactions" or "ExpiryAlerts" ? "active" : "")"><i class="nav-icon bi bi-capsule"></i><span class="nav-label">Kho thuốc</span></a>
+                        @if (isPharmacist && !isAdmin)
+                        {
+                            <a asp-controller="Clinic" asp-action="InventoryReceipts" class="@(currentAction == "InventoryReceipts" ? "active" : "")"><i class="nav-icon bi bi-box-arrow-in-down"></i><span class="nav-label">Phiếu nhập</span></a>
+                            <a asp-controller="Clinic" asp-action="InventoryLots" class="@(currentAction == "InventoryLots" ? "active" : "")"><i class="nav-icon bi bi-boxes"></i><span class="nav-label">Lô thuốc</span></a>
+                            <a asp-controller="Clinic" asp-action="InventoryTransactions" class="@(currentAction == "InventoryTransactions" ? "active" : "")"><i class="nav-icon bi bi-clock-history"></i><span class="nav-label">Lịch sử kho</span></a>
+                            <a asp-controller="Clinic" asp-action="ExpiryAlerts" class="@(currentAction == "ExpiryAlerts" ? "active" : "")"><i class="nav-icon bi bi-exclamation-octagon-fill"></i><span class="nav-label">Cảnh báo hạn</span></a>
+                        }
                     }
                     @if (isAdmin || isDoctor || isPharmacist)
                     {
@@ -84,8 +82,7 @@
                     @if (isAdmin)
                     {
                         <a asp-controller="Clinic" asp-action="Revenue" class="@(currentAction == "Revenue" ? "active" : "")"><i class="nav-icon bi bi-graph-up-arrow"></i><span class="nav-label">Doanh thu</span></a>
-                        <a asp-controller="AdminPatientPortal" asp-action="Index"><i class="nav-icon bi bi-person-lines-fill"></i><span class="nav-label">Cổng bệnh nhân</span></a>
-                        <a asp-controller="AdminPatientPortal" asp-action="Index" asp-fragment="admin-chat"><i class="nav-icon bi bi-chat-left-text-fill"></i><span class="nav-label">Chat bệnh nhân</span></a>
+                        <a asp-controller="AdminPatientPortal" asp-action="Index" class="@(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminPatientPortal" ? "active" : "")"><i class="nav-icon bi bi-person-lines-fill"></i><span class="nav-label">Cổng bệnh nhân</span></a>
                         <a asp-controller="Clinic" asp-action="Users" class="@(currentAction == "Users" ? "active" : "")"><i class="nav-icon bi bi-person-gear"></i><span class="nav-label">Tài khoản</span></a>
                     }
                 }
@@ -104,18 +101,33 @@
                     }
                 </div>
                 <div class="topbar-right-block">
-                    <div class="operator-chip">
-                        <div class="operator-info">
-                            <span class="operator-name">@User.Identity.Name</span>
-                            <span class="operator-role">@roleText</span>
+                    @if (isPatient)
+                    {
+                        <a class="topbar-icon-btn" asp-controller="PatientPortal" asp-action="Notifications" title="Thông báo">
+                            <i class="bi bi-bell-fill"></i>
+                        </a>
+                    }
+                    <div class="operator-menu dropdown">
+                        <button class="operator-chip operator-avatar-chip @(isPatient ? "patient-account-chip" : "")" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Tài khoản">
+                            <span class="topbar-avatar">@avatarInitial</span>
+                            <span class="operator-info">
+                                <span class="operator-name">@displayName</span>
+                                <span class="operator-role">@roleText</span>
+                            </span>
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end account-dropdown">
+                            @if (isPatient)
+                            {
+                                <a class="dropdown-item" asp-controller="PatientPortal" asp-action="Profile"><i class="bi bi-person-vcard"></i> Hồ sơ cá nhân</a>
+                            }
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="logout-form">
+                                <button type="submit" class="dropdown-item logout-menu-item">
+                                    <i class="bi bi-box-arrow-right"></i> Đăng xuất
+                                </button>
+                            </form>
                         </div>
                     </div>
-                    <form asp-controller="Account" asp-action="Logout" method="post" class="logout-form">
-                        <button type="submit" class="logout-btn" title="Đăng xuất">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <span>Đăng xuất</span>
-                        </button>
-                    </form>
                 </div>
             </header>
 
@@ -131,6 +143,31 @@
                     @RenderBody()
                 </div>
             </main>
+            @if (isPatient)
+            {
+                <div class="floating-chat" data-floating-chat>
+                    <button class="floating-chat-button" type="button" data-chat-toggle aria-expanded="false" title="Chat hỗ trợ">
+                        <i class="bi bi-chat-dots-fill"></i>
+                    </button>
+                    <section class="floating-chat-panel" hidden>
+                        <header>
+                            <div>
+                                <strong>Trợ lý AI An Tâm</strong>
+                                <span>Hỗ trợ nhanh, không lưu hội thoại</span>
+                            </div>
+                            <button type="button" data-chat-close aria-label="Đóng chat"><i class="bi bi-x-lg"></i></button>
+                        </header>
+                        <div class="floating-chat-messages" data-floating-chat-messages>
+                            <div class="message incoming"><p>Xin chào, tôi có thể hỗ trợ bạn đặt lịch, thanh toán QR và chuẩn bị trước khi khám.</p><small>AI</small></div>
+                        </div>
+                        <form asp-controller="PatientPortal" asp-action="SendChatMessage" method="post" class="floating-chat-composer" data-floating-chat-form>
+                            @Html.AntiForgeryToken()
+                            <input name="message" autocomplete="off" placeholder="Nhập câu hỏi..." />
+                            <button type="submit" title="Gửi"><i class="bi bi-send-fill"></i></button>
+                        </form>
+                    </section>
+                </div>
+            }
         </div>
     </div>
 }

@@ -31,8 +31,8 @@ public class PatientPortalController(
     }
     public Task<IActionResult> Appointments() => Portal("Appointments");
     public Task<IActionResult> Results() => Portal("Results");
-    public Task<IActionResult> Prescriptions() => Portal("Prescriptions");
-    public Task<IActionResult> History() => Portal("History");
+    public IActionResult Prescriptions() => RedirectToAction(nameof(Results));
+    public IActionResult History() => RedirectToAction(nameof(Results));
     public async Task<IActionResult> Payments(int? invoiceId)
     {
         var model = await BuildModel("Payments");
@@ -44,7 +44,7 @@ public class PatientPortalController(
         return View("Portal", model);
     }
     public Task<IActionResult> Notifications() => Portal("Notifications");
-    public Task<IActionResult> Chat() => Portal("Chat");
+    public IActionResult Chat() => RedirectToAction(nameof(Home));
 
     public async Task<IActionResult> AppointmentDetail(int id)
     {
@@ -309,11 +309,23 @@ public class PatientPortalController(
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> SendChatMessage(string message, IFormFile? image, CancellationToken cancellationToken)
+    public async Task<IActionResult> SendChatMessage(string message, CancellationToken cancellationToken)
     {
         var user = await userManager.GetUserAsync(User);
         if (user is null) return Challenge();
 
+        var submittedMessage = message?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(submittedMessage))
+        {
+            return Json(new { ok = false, reply = "Bạn hãy nhập câu hỏi trước khi gửi nhé." });
+        }
+
+        var statelessMessages = BuildAiMessages(user.FullName, submittedMessage);
+        var statelessReply = await aiChatService.GetReplyAsync(statelessMessages, cancellationToken);
+        return Json(new { ok = true, reply = statelessReply });
+    }
+
+/*
         var imageUrl = "";
         if (image is { Length: > 0 })
         {
@@ -371,6 +383,7 @@ public class PatientPortalController(
         }
         return RedirectToAction(nameof(Chat));
     }
+*/
 
     public async Task<IActionResult> DownloadMedicalReport(int? id)
     {
@@ -474,8 +487,8 @@ public class PatientPortalController(
 
         var needsDoctors = page is "Home" or "Book" or "EditAppointment";
         var needsAppointments = page is "Home" or "Appointments" or "AppointmentDetail" or "EditAppointment";
-        var needsRecords = page is "Results" or "ResultDetail" or "History";
-        var needsPrescriptions = page is "Prescriptions" or "ResultDetail" or "History";
+        var needsRecords = page is "Results" or "ResultDetail";
+        var needsPrescriptions = page is "Results" or "ResultDetail";
 
         if (needsDoctors)
         {
@@ -503,7 +516,7 @@ public class PatientPortalController(
                 .Where(x => x.PatientId == patient.Id)
                 .OrderByDescending(x => x.CreatedAt).ToListAsync();
         }
-        if (page == "Prescriptions")
+        if (page is "Results" or "ResultDetail")
         {
             var prescriptionIds = model.Prescriptions.Select(x => x.Id).ToList();
             model.PrescriptionDetails = await db.PrescriptionDetails.AsNoTracking()
@@ -523,12 +536,6 @@ public class PatientPortalController(
             model.Notifications = await db.Notifications.AsNoTracking()
                 .Where(x => x.UserId == user.Id || x.UserId == "")
                 .OrderByDescending(x => x.CreatedAt).ToListAsync();
-        }
-        if (page == "Chat")
-        {
-            model.ChatMessages = await db.AuditLogs.AsNoTracking()
-                .Where(x => x.UserId == user.Id && x.EntityName == "PatientChat")
-                .OrderBy(x => x.CreatedAt).ToListAsync();
         }
         if (page == "Home")
         {
@@ -577,6 +584,16 @@ public class PatientPortalController(
         => appointment.Status != "Hoan tat" && appointment.Status != "Da huy" && appointment.Status != "Huy"
             && appointment.Status != "Hoàn tất" && appointment.Status != "Đã hủy" && appointment.Status != "Hủy"
             && appointment.AppointmentTime > DateTime.Now.AddHours(4);
+
+    private static List<AiChatMessage> BuildAiMessages(string patientName, string patientMessage) =>
+    [
+        new("system",
+            "Bạn là trợ lý AI của Phòng Khám An Tâm. Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu và thân thiện. " +
+            "Bạn hỗ trợ thông tin sức khỏe phổ thông, hướng dẫn đặt lịch, thanh toán, chuẩn bị đi khám và giải thích thuật ngữ y tế ở mức tham khảo. " +
+            "Không khẳng định chẩn đoán, không kê đơn thuốc, không thay thế bác sĩ. Nếu có dấu hiệu nguy hiểm, hãy khuyên người bệnh đi cấp cứu hoặc liên hệ bác sĩ ngay. " +
+            $"Tên bệnh nhân: {patientName}."),
+        new("user", patientMessage)
+    ];
 
     private static List<AiChatMessage> BuildAiMessages(string patientName, IReadOnlyList<AuditLog> chatMessages)
     {

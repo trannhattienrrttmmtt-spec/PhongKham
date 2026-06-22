@@ -152,9 +152,9 @@
         <div class="ops-list">
             @if (isAdmin)
             {
-                <a asp-action="Rooms"><span>Phòng bệnh</span><strong>Theo dõi sức chứa</strong></a>
-                <a asp-action="Users"><span>Tài khoản</span><strong>Quản lý người dùng</strong></a>
-                <a asp-action="Revenue"><span>Báo cáo</span><strong>Xem doanh thu</strong></a>
+                <a asp-action="Patients"><span>Bệnh nhân</span><strong>Mở danh sách hồ sơ</strong></a>
+                <a asp-action="Appointments"><span>Lịch hẹn</span><strong>Xử lý lịch trong ngày</strong></a>
+                <a asp-action="Revenue"><span>Doanh thu</span><strong>Xem báo cáo tổng hợp</strong></a>
             }
             else if (isDoctor)
             {

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +13,7 @@ public class AdminPatientPortalController(
     ClinicDbContext db,
     UserManager<ApplicationUser> userManager) : Controller
 {
-    public async Task<IActionResult> Index(string? selectedUserId)
+    public async Task<IActionResult> Index()
     {
         var patientUsers = new List<ApplicationUser>();
         foreach (var user in await userManager.Users.OrderBy(x => x.FullName).ToListAsync())
@@ -24,19 +24,6 @@ public class AdminPatientPortalController(
             }
         }
 
-        var userNames = patientUsers.ToDictionary(
-            x => x.Id,
-            x => string.IsNullOrWhiteSpace(x.FullName) ? x.Email ?? x.UserName ?? "Bệnh nhân" : x.FullName);
-
-        var chatMessages = await db.AuditLogs.Where(x => x.EntityName == "PatientChat")
-            .OrderBy(x => x.CreatedAt).Take(500).ToListAsync();
-        patientUsers = patientUsers
-            .OrderByDescending(user => chatMessages.LastOrDefault(x => x.UserId == user.Id)?.CreatedAt ?? DateTime.MinValue)
-            .ThenBy(user => user.FullName)
-            .ToList();
-        var selectedPatient = patientUsers.FirstOrDefault(x => x.Id == selectedUserId)
-            ?? patientUsers.FirstOrDefault();
-
         return View(new AdminPatientPortalViewModel
         {
             Appointments = await db.Appointments.Include(x => x.Patient).Include(x => x.Doctor)
@@ -44,20 +31,17 @@ public class AdminPatientPortalController(
             Invoices = await db.Invoices.Include(x => x.Patient).Include(x => x.Payments)
                 .OrderByDescending(x => x.CreatedAt).Take(100).ToListAsync(),
             Notifications = await db.Notifications.OrderByDescending(x => x.CreatedAt).Take(100).ToListAsync(),
-            ChatMessages = chatMessages,
-            PatientUsers = patientUsers,
-            UserNames = userNames,
-            SelectedPatientUser = selectedPatient
+            PatientUsers = patientUsers
         });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateAppointmentStatus(int id, string status)
     {
-        var allowed = new[] { "Đã đặt lịch", "Đã xác nhận", "Đang chờ", "Hoàn tất", "Đã hủy" };
+        var allowed = new[] { "ÄÃ£ Ä‘áº·t lá»‹ch", "ÄÃ£ xÃ¡c nháº­n", "Äang chá»", "HoÃ n táº¥t", "ÄÃ£ há»§y" };
         if (!allowed.Contains(status))
         {
-            TempData["PortalError"] = "Trạng thái lịch khám không hợp lệ.";
+            TempData["PortalError"] = "Tráº¡ng thÃ¡i lá»‹ch khÃ¡m khÃ´ng há»£p lá»‡.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -66,7 +50,7 @@ public class AdminPatientPortalController(
         {
             appointment.Status = status;
             var invoice = await db.Invoices.FirstOrDefaultAsync(x => x.AppointmentId == appointment.Id);
-            if (invoice is not null && status == "Đã hủy" && invoice.PaymentStatus != "Paid")
+            if (invoice is not null && status == "ÄÃ£ há»§y" && invoice.PaymentStatus != "Paid")
             {
                 invoice.PaymentStatus = "Cancelled";
                 invoice.UpdatedAt = DateTime.Now;
@@ -77,13 +61,13 @@ public class AdminPatientPortalController(
                 db.Notifications.Add(new Notification
                 {
                     UserId = patientUser.Id,
-                    Title = "Cập nhật lịch khám",
-                    Message = $"Lịch LH-{appointment.Id:D5} đã chuyển sang trạng thái: {status}.",
+                    Title = "Cáº­p nháº­t lá»‹ch khÃ¡m",
+                    Message = $"Lá»‹ch LH-{appointment.Id:D5} Ä‘Ã£ chuyá»ƒn sang tráº¡ng thÃ¡i: {status}.",
                     CreatedBy = User.Identity?.Name ?? ""
                 });
             }
             await db.SaveChangesAsync();
-            TempData["PortalSuccess"] = "Đã cập nhật trạng thái và gửi thông báo cho bệnh nhân.";
+            TempData["PortalSuccess"] = "ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i vÃ  gá»­i thÃ´ng bÃ¡o cho bá»‡nh nhÃ¢n.";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -94,7 +78,7 @@ public class AdminPatientPortalController(
         if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(message)
             || !await userManager.Users.AnyAsync(x => x.Id == userId))
         {
-            TempData["PortalError"] = "Thông tin thông báo chưa hợp lệ.";
+            TempData["PortalError"] = "ThÃ´ng tin thÃ´ng bÃ¡o chÆ°a há»£p lá»‡.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -106,64 +90,8 @@ public class AdminPatientPortalController(
             CreatedBy = User.Identity?.Name ?? ""
         });
         await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "Đã gửi thông báo cho bệnh nhân.";
+        TempData["PortalSuccess"] = "ÄÃ£ gá»­i thÃ´ng bÃ¡o cho bá»‡nh nhÃ¢n.";
         return RedirectToAction(nameof(Index));
-    }
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ReplyChat(string userId, string message, IFormFile? image)
-    {
-        var patientUser = await userManager.FindByIdAsync(userId);
-        if (patientUser is null || !await userManager.IsInRoleAsync(patientUser, "BenhNhan"))
-        {
-            TempData["PortalError"] = "Không tìm thấy tài khoản bệnh nhân.";
-            return RedirectToAction(nameof(Index), new { selectedUserId = userId });
-        }
-
-        var imageUrl = "";
-        if (image is { Length: > 0 })
-        {
-            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-            if (!allowed.Contains(extension) || image.Length > 5 * 1024 * 1024)
-            {
-                TempData["PortalError"] = "Ảnh phải là JPG, PNG hoặc WEBP và không vượt quá 5 MB.";
-                return RedirectToAction(nameof(Index), new { selectedUserId = userId });
-            }
-
-            var directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "chat");
-            Directory.CreateDirectory(directory);
-            var fileName = $"{Guid.NewGuid():N}{extension}";
-            await using var stream = System.IO.File.Create(Path.Combine(directory, fileName));
-            await image.CopyToAsync(stream);
-            imageUrl = $"/uploads/chat/{fileName}";
-        }
-
-        if (string.IsNullOrWhiteSpace(message) && string.IsNullOrWhiteSpace(imageUrl))
-        {
-            TempData["PortalError"] = "Vui lòng nhập tin nhắn hoặc chọn hình ảnh.";
-            return RedirectToAction(nameof(Index), new { selectedUserId = userId });
-        }
-
-        var description = $"{message?.Trim()}\n{imageUrl}".Trim();
-        db.AuditLogs.Add(new AuditLog
-        {
-            UserId = userId,
-            Action = "AdminReply",
-            EntityName = "PatientChat",
-            Description = description,
-            CreatedAt = DateTime.Now
-        });
-        db.Notifications.Add(new Notification
-        {
-            UserId = userId,
-            Title = "Tin nhắn mới từ phòng khám",
-            Message = string.IsNullOrWhiteSpace(message) ? "Phòng khám đã gửi một hình ảnh." : message.Trim(),
-            CreatedBy = User.Identity?.Name ?? ""
-        });
-        await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "Đã trả lời bệnh nhân.";
-        return RedirectToAction(nameof(Index), null, new { selectedUserId = userId }, "admin-chat");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -171,7 +99,7 @@ public class AdminPatientPortalController(
     {
         if (!new[] { "Unpaid", "CashPending", "Paid", "Cancelled" }.Contains(status))
         {
-            TempData["PortalError"] = "Trạng thái hóa đơn không hợp lệ.";
+            TempData["PortalError"] = "Tráº¡ng thÃ¡i hÃ³a Ä‘Æ¡n khÃ´ng há»£p lá»‡.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -186,13 +114,13 @@ public class AdminPatientPortalController(
                 db.Notifications.Add(new Notification
                 {
                     UserId = patientUser.Id,
-                    Title = "Cập nhật thanh toán",
-                    Message = $"Hóa đơn {invoice.InvoiceCode} đã được cập nhật: {StatusName(status)}.",
+                    Title = "Cáº­p nháº­t thanh toÃ¡n",
+                    Message = $"HÃ³a Ä‘Æ¡n {invoice.InvoiceCode} Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t: {StatusName(status)}.",
                     CreatedBy = User.Identity?.Name ?? ""
                 });
             }
             await db.SaveChangesAsync();
-            TempData["PortalSuccess"] = "Đã cập nhật hóa đơn.";
+            TempData["PortalSuccess"] = "ÄÃ£ cáº­p nháº­t hÃ³a Ä‘Æ¡n.";
         }
         return RedirectToAction(nameof(Index));
     }
@@ -210,9 +138,9 @@ public class AdminPatientPortalController(
 
     private static string StatusName(string status) => status switch
     {
-        "Paid" => "Đã thanh toán",
-        "CashPending" => "Thanh toán tại quầy",
-        "Cancelled" => "Đã hủy",
-        _ => "Chờ thanh toán"
+        "Paid" => "ÄÃ£ thanh toÃ¡n",
+        "CashPending" => "Thanh toÃ¡n táº¡i quáº§y",
+        "Cancelled" => "ÄÃ£ há»§y",
+        _ => "Chá» thanh toÃ¡n"
     };
 }
