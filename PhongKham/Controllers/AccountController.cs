@@ -20,7 +20,7 @@ public class AccountController(
     private static readonly DemoAccount[] DemoAccounts =
     [
         new("admin@phongkham.local", "Admin", "Quan tri he thong"),
-        new("bacsi@phongkham.local", "BacSi", "Bac si phong kham"),
+        new("phamquochuy@phongkham.local", "BacSi", "BS. Pham Quoc Huy"),
         new("duocsi@phongkham.local", "DuocSi", "Duoc si"),
         new("benhnhan@phongkham.local", "BenhNhan", "Benh nhan mau")
     ];

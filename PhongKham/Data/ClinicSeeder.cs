@@ -11,56 +11,56 @@ public static class ClinicSeeder
     private const int MinimumSeedMedicineStock = 101;
     private static readonly DoctorSeedInfo[] DoctorSeeds =
     [
-        new("BS. Pham Quoc Huy", "Noi tong quat", "02838111111", "bacsi@phongkham.local"),
-        new("BS. Vo Thanh Tam", "Nhi khoa", "02838222222", "bacsi2@phongkham.local"),
-        new("BS. Dang Hoai Linh", "Tim mach", "02838333333", "bacsi3@phongkham.local"),
-        new("BS. Nguyen Minh Duc", "Tai Mui Hong", "02838444444", "bacsi4@phongkham.local"),
-        new("BS. Le Hoang Anh", "Da lieu", "02838555555", "bacsi5@phongkham.local"),
-        new("BS. Tran Thu Ha", "Co xuong khop", "02838666666", "bacsi6@phongkham.local"),
-        new("BS. Hoang Gia Bao", "Tieu hoa", "02838777777", "bacsi7@phongkham.local"),
-        new("BS. Phan Ngoc Mai", "San phu khoa", "02838888888", "bacsi8@phongkham.local"),
-        new("BS. Bui Khanh Linh", "Mat", "02838999999", "bacsi9@phongkham.local"),
-        new("BS. Doan Quang Vinh", "Than kinh", "02838000010", "bacsi10@phongkham.local"),
-        new("BS. Mai Anh Tuan", "Noi tiet", "02838000011", "bacsi11@phongkham.local"),
-        new("BS. Truong Minh Khang", "Tiet nieu", "02838000012", "bacsi12@phongkham.local"),
-        new("BS. Dinh Bao Chau", "Ho hap", "02838000013", "bacsi13@phongkham.local"),
-        new("BS. Nguyen Thao Vy", "Dinh duong", "02838000014", "bacsi14@phongkham.local"),
-        new("BS. Cao Thanh Son", "Cap cuu", "02838000015", "bacsi15@phongkham.local"),
-        new("BS. Nguyen Hoang Nam", "Noi tong quat", "02838000016", "bacsi16@phongkham.local"),
-        new("BS. Tran Minh Ngoc", "Noi tong quat", "02838000017", "bacsi17@phongkham.local"),
-        new("BS. Pham Tue Minh", "Nhi khoa", "02838000018", "bacsi18@phongkham.local"),
-        new("BS. Le Quynh Nhu", "Nhi khoa", "02838000019", "bacsi19@phongkham.local"),
-        new("BS. Vu Duc Anh", "Tim mach", "02838000020", "bacsi20@phongkham.local"),
-        new("BS. Ho Thi Khanh", "Tim mach", "02838000021", "bacsi21@phongkham.local"),
-        new("BS. Ngo Bao Long", "Tai Mui Hong", "02838000022", "bacsi22@phongkham.local"),
-        new("BS. Phung My Duyen", "Tai Mui Hong", "02838000023", "bacsi23@phongkham.local"),
-        new("BS. Ly Gia Han", "Da lieu", "02838000024", "bacsi24@phongkham.local"),
-        new("BS. Kieu Manh Hung", "Co xuong khop", "02838000025", "bacsi25@phongkham.local"),
-        new("BS. Dang Nhat Minh", "Noi tong quat", "02838000026", "bacsi26@phongkham.local"),
-        new("BS. Ha Phuong Linh", "Noi tong quat", "02838000027", "bacsi27@phongkham.local"),
-        new("BS. Nguyen Bao Tran", "Nhi khoa", "02838000028", "bacsi28@phongkham.local"),
-        new("BS. Cao Minh Quan", "Nhi khoa", "02838000029", "bacsi29@phongkham.local"),
-        new("BS. Truong Anh Khoa", "Tim mach", "02838000030", "bacsi30@phongkham.local"),
-        new("BS. Le Thanh Truc", "Tim mach", "02838000031", "bacsi31@phongkham.local"),
-        new("BS. Nguyen Duc Tri", "Tai Mui Hong", "02838000032", "bacsi32@phongkham.local"),
-        new("BS. Vo Minh Chau", "Tai Mui Hong", "02838000033", "bacsi33@phongkham.local"),
-        new("BS. Pham Ha My", "Da lieu", "02838000034", "bacsi34@phongkham.local"),
-        new("BS. Tran Quoc Bao", "Da lieu", "02838000035", "bacsi35@phongkham.local"),
-        new("BS. Nguyen Tuan Kiet", "Co xuong khop", "02838000036", "bacsi36@phongkham.local"),
-        new("BS. Do Thi Thanh", "Co xuong khop", "02838000037", "bacsi37@phongkham.local"),
-        new("BS. Bui Minh Phuc", "Tieu hoa", "02838000038", "bacsi38@phongkham.local"),
-        new("BS. Tran Kim Ngan", "Tieu hoa", "02838000039", "bacsi39@phongkham.local"),
-        new("BS. Le Bao Ngoc", "San phu khoa", "02838000040", "bacsi40@phongkham.local"),
-        new("BS. Nguyen Thuy Dung", "San phu khoa", "02838000041", "bacsi41@phongkham.local"),
-        new("BS. Pham Van Hieu", "Mat", "02838000042", "bacsi42@phongkham.local"),
-        new("BS. Doan My Linh", "Mat", "02838000043", "bacsi43@phongkham.local"),
-        new("BS. Huynh Gia Phat", "Than kinh", "02838000044", "bacsi44@phongkham.local"),
-        new("BS. Tran Ngoc Huyen", "Than kinh", "02838000045", "bacsi45@phongkham.local"),
-        new("BS. Le Quang Huy", "Noi tiet", "02838000046", "bacsi46@phongkham.local"),
-        new("BS. Nguyen Phuong Anh", "Noi tiet", "02838000047", "bacsi47@phongkham.local"),
-        new("BS. Pham Trung Hieu", "Ho hap", "02838000048", "bacsi48@phongkham.local"),
-        new("BS. Vu Thi Mai", "Ho hap", "02838000049", "bacsi49@phongkham.local"),
-        new("BS. Tran Gia Huy", "Cap cuu", "02838000050", "bacsi50@phongkham.local")
+        new("BS. Pham Quoc Huy", "Noi tong quat", "02838111111"),
+        new("BS. Vo Thanh Tam", "Nhi khoa", "02838222222"),
+        new("BS. Dang Hoai Linh", "Tim mach", "02838333333"),
+        new("BS. Nguyen Minh Duc", "Tai Mui Hong", "02838444444"),
+        new("BS. Le Hoang Anh", "Da lieu", "02838555555"),
+        new("BS. Tran Thu Ha", "Co xuong khop", "02838666666"),
+        new("BS. Hoang Gia Bao", "Tieu hoa", "02838777777"),
+        new("BS. Phan Ngoc Mai", "San phu khoa", "02838888888"),
+        new("BS. Bui Khanh Linh", "Mat", "02838999999"),
+        new("BS. Doan Quang Vinh", "Than kinh", "02838000010"),
+        new("BS. Mai Anh Tuan", "Noi tiet", "02838000011"),
+        new("BS. Truong Minh Khang", "Tiet nieu", "02838000012"),
+        new("BS. Dinh Bao Chau", "Ho hap", "02838000013"),
+        new("BS. Nguyen Thao Vy", "Dinh duong", "02838000014"),
+        new("BS. Cao Thanh Son", "Cap cuu", "02838000015"),
+        new("BS. Nguyen Hoang Nam", "Noi tong quat", "02838000016"),
+        new("BS. Tran Minh Ngoc", "Noi tong quat", "02838000017"),
+        new("BS. Pham Tue Minh", "Nhi khoa", "02838000018"),
+        new("BS. Le Quynh Nhu", "Nhi khoa", "02838000019"),
+        new("BS. Vu Duc Anh", "Tim mach", "02838000020"),
+        new("BS. Ho Thi Khanh", "Tim mach", "02838000021"),
+        new("BS. Ngo Bao Long", "Tai Mui Hong", "02838000022"),
+        new("BS. Phung My Duyen", "Tai Mui Hong", "02838000023"),
+        new("BS. Ly Gia Han", "Da lieu", "02838000024"),
+        new("BS. Kieu Manh Hung", "Co xuong khop", "02838000025"),
+        new("BS. Dang Nhat Minh", "Noi tong quat", "02838000026"),
+        new("BS. Ha Phuong Linh", "Noi tong quat", "02838000027"),
+        new("BS. Nguyen Bao Tran", "Nhi khoa", "02838000028"),
+        new("BS. Cao Minh Quan", "Nhi khoa", "02838000029"),
+        new("BS. Truong Anh Khoa", "Tim mach", "02838000030"),
+        new("BS. Le Thanh Truc", "Tim mach", "02838000031"),
+        new("BS. Nguyen Duc Tri", "Tai Mui Hong", "02838000032"),
+        new("BS. Vo Minh Chau", "Tai Mui Hong", "02838000033"),
+        new("BS. Pham Ha My", "Da lieu", "02838000034"),
+        new("BS. Tran Quoc Bao", "Da lieu", "02838000035"),
+        new("BS. Nguyen Tuan Kiet", "Co xuong khop", "02838000036"),
+        new("BS. Do Thi Thanh", "Co xuong khop", "02838000037"),
+        new("BS. Bui Minh Phuc", "Tieu hoa", "02838000038"),
+        new("BS. Tran Kim Ngan", "Tieu hoa", "02838000039"),
+        new("BS. Le Bao Ngoc", "San phu khoa", "02838000040"),
+        new("BS. Nguyen Thuy Dung", "San phu khoa", "02838000041"),
+        new("BS. Pham Van Hieu", "Mat", "02838000042"),
+        new("BS. Doan My Linh", "Mat", "02838000043"),
+        new("BS. Huynh Gia Phat", "Than kinh", "02838000044"),
+        new("BS. Tran Ngoc Huyen", "Than kinh", "02838000045"),
+        new("BS. Le Quang Huy", "Noi tiet", "02838000046"),
+        new("BS. Nguyen Phuong Anh", "Noi tiet", "02838000047"),
+        new("BS. Pham Trung Hieu", "Ho hap", "02838000048"),
+        new("BS. Vu Thi Mai", "Ho hap", "02838000049"),
+        new("BS. Tran Gia Huy", "Cap cuu", "02838000050")
     ];
 
     public static async Task SeedAsync(
@@ -330,6 +330,12 @@ public static class ClinicSeeder
         string phoneNumber = "")
     {
         var user = await userManager.FindByEmailAsync(email);
+        if (user is null && role == "BacSi")
+        {
+            user = await userManager.Users.FirstOrDefaultAsync(x =>
+                x.FullName == fullName || (!string.IsNullOrWhiteSpace(phoneNumber) && x.PhoneNumber == phoneNumber));
+        }
+
         if (user is null)
         {
             user = new ApplicationUser
@@ -346,6 +352,18 @@ public static class ClinicSeeder
             if (!result.Succeeded)
             {
                 return;
+            }
+        }
+
+        if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(user.UserName, email, StringComparison.OrdinalIgnoreCase))
+        {
+            var emailOwner = await userManager.FindByEmailAsync(email);
+            if (emailOwner is null || emailOwner.Id == user.Id)
+            {
+                await userManager.SetUserNameAsync(user, email);
+                await userManager.SetEmailAsync(user, email);
+                user.EmailConfirmed = true;
             }
         }
 
@@ -367,7 +385,7 @@ public static class ClinicSeeder
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager)
     {
-        foreach (var email in new[] { "letan1@phongkham.local", "letan2@phongkham.local" })
+        foreach (var email in new[] { "letan1@phongkham.local", "letan2@phongkham.local", "bacsi.test4@phongkham.local", "bacsi.test5@phongkham.local" })
         {
             var user = await userManager.FindByEmailAsync(email);
             if (user is not null)
@@ -388,7 +406,6 @@ public static class ClinicSeeder
         var names = new Dictionary<string, string>
         {
             ["admin@phongkham.local"] = "Quan tri he thong",
-            ["bacsi@phongkham.local"] = "Bac si phong kham",
             ["duocsi@phongkham.local"] = "Duoc si",
             ["benhnhan@phongkham.local"] = "Nguyen Van An"
         };
@@ -402,11 +419,31 @@ public static class ClinicSeeder
                 await userManager.UpdateAsync(user);
             }
         }
+
+        foreach (var doctor in DoctorSeeds)
+        {
+            var user = await userManager.FindByEmailAsync(doctor.Email);
+            if (user is not null && user.FullName != doctor.FullName)
+            {
+                user.FullName = doctor.FullName;
+                await userManager.UpdateAsync(user);
+            }
+        }
     }
 
     private static async Task EnsureDoctorWorkflowSeedDataAsync(ClinicDbContext db)
     {
         var changed = false;
+
+        var legacyDoctors = await db.Doctors
+            .Where(x => (x.AccountEmail == "bacsi.test4@phongkham.local" || x.AccountEmail == "bacsi.test5@phongkham.local")
+                && !db.Appointments.Any(a => a.DoctorId == x.Id))
+            .ToListAsync();
+        if (legacyDoctors.Count > 0)
+        {
+            db.Doctors.RemoveRange(legacyDoctors);
+            changed = true;
+        }
 
         var doctor = await db.Doctors.OrderBy(x => x.Id).FirstOrDefaultAsync();
         if (doctor is not null && string.IsNullOrWhiteSpace(doctor.AccountEmail))
@@ -876,6 +913,20 @@ public static class ClinicSeeder
         return candidates.FirstOrDefault(File.Exists);
     }
 
-    private sealed record DoctorSeedInfo(string FullName, string Specialty, string Phone, string Email);
+    private static string DoctorLoginName(string fullName)
+    {
+        var cleaned = fullName.Replace("BS.", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("Bac si", "", StringComparison.OrdinalIgnoreCase)
+            .Trim()
+            .ToLowerInvariant();
+
+        return string.Concat(cleaned.Where(char.IsLetterOrDigit));
+    }
+
+    private sealed record DoctorSeedInfo(string FullName, string Specialty, string Phone)
+    {
+        public string Email => $"{DoctorLoginName(FullName)}@phongkham.local";
+    }
+
     private sealed record DrugSeedRow(string Code, string Name, string Smiles);
 }
