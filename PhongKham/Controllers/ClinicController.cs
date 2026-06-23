@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -27,13 +27,13 @@ public class ClinicController(
         "Dang kham",
         "Hoan tat",
         "Huy",
-        "ÄÃ£ Ä‘áº·t lá»‹ch",
-        "ÄÃ£ xÃ¡c nháº­n",
-        "Äang chá»",
-        "Äang khÃ¡m",
-        "HoÃ n táº¥t",
-        "Há»§y",
-        "ÄÃ£ há»§y"
+        "Đã đặt lịch",
+        "Đã xác nhận",
+        "Đang chờ",
+        "Đang khám",
+        "Hoàn tất",
+        "Hủy",
+        "Đã hủy"
     ];
 
     private static readonly string[] DoctorStatusTransitions =
@@ -45,7 +45,7 @@ public class ClinicController(
     private const int PrescriptionRowCount = 4;
 
     private static bool IsWaitingForDoctor(string status)
-        => status is "Da xac nhan" or "Dang cho" or "ÄÃ£ xÃ¡c nháº­n" or "Äang chá»";
+        => status is "Da xac nhan" or "Dang cho" or "Đã xác nhận" or "Đang chờ";
 
     public async Task<IActionResult> Dashboard()
     {
@@ -120,7 +120,7 @@ public class ClinicController(
         var doctor = await TryGetCurrentDoctorAsync();
         if (doctor is null)
         {
-            TempData["WorkflowWarning"] = "TÃ i khoáº£n bÃ¡c sÄ© chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i há»“ sÆ¡ bÃ¡c sÄ©.";
+            TempData["WorkflowWarning"] = "Tài khoản bác sĩ chưa được liên kết với hồ sơ bác sĩ.";
             return View(new List<Patient>());
         }
 
@@ -222,7 +222,7 @@ public class ClinicController(
                 });
                 await db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                TempData["SuccessMessage"] = "ÄÃ£ táº¡o bÃ¡c sÄ© vÃ  tÃ i khoáº£n Ä‘Äƒng nháº­p.";
+                TempData["SuccessMessage"] = "Đã tạo bác sĩ và tài khoản đăng nhập.";
             });
         }
         catch (Exception ex)
@@ -261,7 +261,7 @@ public class ClinicController(
 
         if (isDoctor && currentDoctor is null)
         {
-            TempData["WorkflowWarning"] = "TÃ i khoáº£n bÃ¡c sÄ© chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i há»“ sÆ¡ bÃ¡c sÄ©.";
+            TempData["WorkflowWarning"] = "Tài khoản bác sĩ chưa được liên kết với hồ sơ bác sĩ.";
         }
 
         var patients = isDoctor && currentDoctor is not null
@@ -349,24 +349,24 @@ public class ClinicController(
                 var patient = await TryGetOrCreateCurrentPatientAsync();
                 if (patient is null)
                 {
-                    TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y tÃ i khoáº£n bá»‡nh nhÃ¢n Ä‘á»ƒ Ä‘áº·t lá»‹ch.";
+                    TempData["WorkflowWarning"] = "Không tìm thấy tài khoản bệnh nhân để đặt lịch.";
                     return RedirectToAction(nameof(Appointments));
                 }
 
                 appointment.PatientId = patient.Id;
-                appointment.Status = "ÄÃ£ Ä‘áº·t lá»‹ch";
+                appointment.Status = "Đã đặt lịch";
                 appointment.Fee = 150000;
             }
             else if (string.IsNullOrWhiteSpace(appointment.Status))
             {
-                appointment.Status = "ÄÃ£ Ä‘áº·t lá»‹ch";
+                appointment.Status = "Đã đặt lịch";
             }
 
             await TryExecuteAsync(async () =>
             {
                 if (await HasDoctorConflictAsync(appointment.DoctorId, appointment.AppointmentTime))
                 {
-                    TempData["DatabaseWarning"] = "BÃ¡c sÄ© Ä‘Ã£ cÃ³ lá»‹ch trong khung giá» nÃ y. Vui lÃ²ng chá»n giá» khÃ¡c.";
+                    TempData["DatabaseWarning"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
                     return;
                 }
 
@@ -383,7 +383,7 @@ public class ClinicController(
                     ServiceFee = 0,
                     Discount = 0,
                     TotalAmount = appointment.Fee,
-                    PaymentStatus = appointment.Status is "Há»§y" or "ÄÃ£ há»§y" ? "Cancelled" : "Unpaid",
+                    PaymentStatus = appointment.Status is "Hủy" or "Đã hủy" ? "Cancelled" : "Unpaid",
                     CreatedBy = User.Identity?.Name ?? ""
                 });
                 await db.SaveChangesAsync();
@@ -400,13 +400,13 @@ public class ClinicController(
         status = status?.Trim() ?? string.Empty;
         if (!DoctorStatusTransitions.Contains(status) && !User.IsInRole("Admin"))
         {
-            TempData["WorkflowWarning"] = "Tráº¡ng thÃ¡i lá»‹ch khÃ¡m khÃ´ng há»£p lá»‡.";
+            TempData["WorkflowWarning"] = "Trạng thái lịch khám không hợp lệ.";
             return RedirectToAction(nameof(Appointments));
         }
 
         if (!AppointmentStatuses.Contains(status))
         {
-            TempData["WorkflowWarning"] = "Tráº¡ng thÃ¡i lá»‹ch khÃ¡m khÃ´ng há»£p lá»‡.";
+            TempData["WorkflowWarning"] = "Trạng thái lịch khám không hợp lệ.";
             return RedirectToAction(nameof(Appointments));
         }
 
@@ -415,7 +415,7 @@ public class ClinicController(
             var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == id);
             if (appointment is null)
             {
-                TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y lá»‹ch háº¹n cáº§n cáº­p nháº­t.";
+                TempData["WorkflowWarning"] = "Không tìm thấy lịch hẹn cần cập nhật.";
                 return RedirectToAction(nameof(Appointments));
             }
 
@@ -424,14 +424,14 @@ public class ClinicController(
                 var doctor = await TryGetCurrentDoctorAsync();
                 if (doctor is null || appointment.DoctorId != doctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c cáº­p nháº­t lá»‹ch cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được cập nhật lịch của chính mình.";
                     return RedirectToAction(nameof(Appointments));
                 }
             }
 
             appointment.Status = status;
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = "ÄÃ£ cáº­p nháº­t tráº¡ng thÃ¡i lá»‹ch khÃ¡m.";
+            TempData["SuccessMessage"] = "Đã cập nhật trạng thái lịch khám.";
         }
         catch (Exception ex)
         {
@@ -542,7 +542,7 @@ public class ClinicController(
             var medicine = await db.Medicines.FirstOrDefaultAsync(x => x.Id == id);
             if (medicine is null || quantity == 0 || medicine.QuantityInStock + quantity < 0)
             {
-                TempData["DatabaseWarning"] = "Sá»‘ lÆ°á»£ng Ä‘iá»u chá»‰nh khÃ´ng há»£p lá»‡ hoáº·c vÆ°á»£t quÃ¡ tá»“n kho.";
+                TempData["DatabaseWarning"] = "Số lượng điều chỉnh không hợp lệ hoặc vượt quá tồn kho.";
                 return;
             }
 
@@ -552,11 +552,11 @@ public class ClinicController(
                 MedicineId = medicine.Id,
                 TransactionType = quantity > 0 ? "Import" : "Export",
                 Quantity = Math.Abs(quantity),
-                ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Äiá»u chá»‰nh thá»§ cÃ´ng" : reason.Trim(),
+                ReferenceCode = string.IsNullOrWhiteSpace(reason) ? "Điều chỉnh thủ công" : reason.Trim(),
                 CreatedBy = User.Identity?.Name ?? ""
             });
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = "ÄÃ£ cáº­p nháº­t tá»“n kho.";
+            TempData["SuccessMessage"] = "Đã cập nhật tồn kho.";
         });
 
         return RedirectToAction(nameof(Medicines));
@@ -764,7 +764,7 @@ public class ClinicController(
         var currentDoctor = User.IsInRole("BacSi") ? await TryGetCurrentDoctorAsync() : null;
         if (User.IsInRole("BacSi") && currentDoctor is null)
         {
-            TempData["WorkflowWarning"] = "TÃ i khoáº£n bÃ¡c sÄ© chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i há»“ sÆ¡ bÃ¡c sÄ©.";
+            TempData["WorkflowWarning"] = "Tài khoản bác sĩ chưa được liên kết với hồ sơ bác sĩ.";
             return RedirectToAction(nameof(Prescriptions));
         }
 
@@ -781,19 +781,19 @@ public class ClinicController(
 
             if (User.IsInRole("BacSi") && form.AppointmentId is null)
             {
-                ModelState.AddModelError(string.Empty, "BÃ¡c sÄ© cáº§n kÃª Ä‘Æ¡n tá»« má»™t lá»‹ch háº¹n cá»¥ thá»ƒ.");
+                ModelState.AddModelError(string.Empty, "Bác sĩ cần kê đơn từ một lịch hẹn cụ thể.");
             }
 
             if (form.AppointmentId.HasValue && appointment is null)
             {
-                ModelState.AddModelError(string.Empty, "KhÃ´ng tÃ¬m tháº¥y lá»‹ch háº¹n Ä‘Ã£ chá»n.");
+                ModelState.AddModelError(string.Empty, "Không tìm thấy lịch hẹn đã chọn.");
             }
 
             if (appointment is not null)
             {
                 if (User.IsInRole("BacSi") && currentDoctor is not null && appointment.DoctorId != currentDoctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c kÃª Ä‘Æ¡n cho lá»‹ch khÃ¡m cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được kê đơn cho lịch khám của chính mình.";
                     return RedirectToAction(nameof(Prescriptions));
                 }
 
@@ -808,7 +808,7 @@ public class ClinicController(
             var patient = await db.Patients.FirstOrDefaultAsync(x => x.Id == form.PatientId);
             if (patient is null)
             {
-                ModelState.AddModelError(string.Empty, "KhÃ´ng tÃ¬m tháº¥y bá»‡nh nhÃ¢n cá»§a Ä‘Æ¡n thuá»‘c.");
+                ModelState.AddModelError(string.Empty, "Không tìm thấy bệnh nhân của đơn thuốc.");
             }
 
             var validation = await ValidatePrescriptionItemsAsync(form, patient);
@@ -832,13 +832,13 @@ public class ClinicController(
 
                 if (entity.Id == 0)
                 {
-                    TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n thuá»‘c cáº§n cáº­p nháº­t.";
+                    TempData["WorkflowWarning"] = "Không tìm thấy đơn thuốc cần cập nhật.";
                     return RedirectToAction(nameof(Prescriptions));
                 }
 
                 if (User.IsInRole("BacSi") && currentDoctor is not null && entity.DoctorId != currentDoctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c sá»­a Ä‘Æ¡n thuá»‘c cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được sửa đơn thuốc của chính mình.";
                     return RedirectToAction(nameof(Prescriptions));
                 }
 
@@ -927,7 +927,7 @@ public class ClinicController(
             }
 
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = form.Id.HasValue ? "ÄÃ£ cáº­p nháº­t Ä‘Æ¡n thuá»‘c." : "ÄÃ£ lÆ°u Ä‘Æ¡n thuá»‘c má»›i.";
+            TempData["SuccessMessage"] = form.Id.HasValue ? "Đã cập nhật đơn thuốc." : "Đã lưu đơn thuốc mới.";
             return RedirectToAction(nameof(Prescriptions));
         }
         catch (Exception ex)
@@ -948,7 +948,7 @@ public class ClinicController(
                 .FirstOrDefaultAsync(x => x.Id == id);
             if (prescription is null)
             {
-                TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y Ä‘Æ¡n thuá»‘c cáº§n xÃ³a.";
+                TempData["WorkflowWarning"] = "Không tìm thấy đơn thuốc cần xóa.";
                 return RedirectToAction(nameof(Prescriptions));
             }
 
@@ -957,14 +957,14 @@ public class ClinicController(
                 var doctor = await TryGetCurrentDoctorAsync();
                 if (doctor is null || prescription.DoctorId != doctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c xÃ³a Ä‘Æ¡n thuá»‘c cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được xóa đơn thuốc của chính mình.";
                     return RedirectToAction(nameof(Prescriptions));
                 }
             }
 
             db.Prescriptions.Remove(prescription);
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = "ÄÃ£ xÃ³a Ä‘Æ¡n thuá»‘c.";
+            TempData["SuccessMessage"] = "Đã xóa đơn thuốc.";
         }
         catch (Exception ex)
         {
@@ -1137,7 +1137,7 @@ public class ClinicController(
         var currentDoctor = User.IsInRole("BacSi") ? await TryGetCurrentDoctorAsync() : null;
         if (User.IsInRole("BacSi") && currentDoctor is null)
         {
-            TempData["WorkflowWarning"] = "TÃ i khoáº£n bÃ¡c sÄ© chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i há»“ sÆ¡ bÃ¡c sÄ©.";
+            TempData["WorkflowWarning"] = "Tài khoản bác sĩ chưa được liên kết với hồ sơ bác sĩ.";
             return RedirectToAction(nameof(MedicalRecords));
         }
 
@@ -1154,19 +1154,19 @@ public class ClinicController(
 
             if (User.IsInRole("BacSi") && form.AppointmentId is null)
             {
-                ModelState.AddModelError(string.Empty, "BÃ¡c sÄ© cáº§n táº¡o bá»‡nh Ã¡n trá»±c tiáº¿p tá»« lá»‹ch háº¹n.");
+                ModelState.AddModelError(string.Empty, "Bác sĩ cần tạo bệnh án trực tiếp từ lịch hẹn.");
             }
 
             if (form.AppointmentId.HasValue && appointment is null)
             {
-                ModelState.AddModelError(string.Empty, "KhÃ´ng tÃ¬m tháº¥y lá»‹ch háº¹n Ä‘Ã£ chá»n.");
+                ModelState.AddModelError(string.Empty, "Không tìm thấy lịch hẹn đã chọn.");
             }
 
             if (appointment is not null)
             {
                 if (User.IsInRole("BacSi") && currentDoctor is not null && appointment.DoctorId != currentDoctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c táº¡o bá»‡nh Ã¡n cho lá»‹ch khÃ¡m cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được tạo bệnh án cho lịch khám của chính mình.";
                     return RedirectToAction(nameof(MedicalRecords));
                 }
 
@@ -1183,7 +1183,7 @@ public class ClinicController(
                 var existingForAppointment = await db.MedicalRecords.FirstOrDefaultAsync(x => x.AppointmentId == form.AppointmentId.Value);
                 if (existingForAppointment is not null)
                 {
-                    ModelState.AddModelError(string.Empty, "Lá»‹ch háº¹n nÃ y Ä‘Ã£ cÃ³ bá»‡nh Ã¡n, hÃ£y dÃ¹ng chá»©c nÄƒng sá»­a.");
+                    ModelState.AddModelError(string.Empty, "Lịch hẹn này đã có bệnh án, hãy dùng chức năng sửa.");
                 }
             }
 
@@ -1198,13 +1198,13 @@ public class ClinicController(
                 entity = await db.MedicalRecords.FirstOrDefaultAsync(x => x.Id == form.Id.Value) ?? new MedicalRecord();
                 if (entity.Id == 0)
                 {
-                    TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y bá»‡nh Ã¡n cáº§n cáº­p nháº­t.";
+                    TempData["WorkflowWarning"] = "Không tìm thấy bệnh án cần cập nhật.";
                     return RedirectToAction(nameof(MedicalRecords));
                 }
 
                 if (User.IsInRole("BacSi") && currentDoctor is not null && entity.DoctorId != currentDoctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c sá»­a bá»‡nh Ã¡n cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được sửa bệnh án của chính mình.";
                     return RedirectToAction(nameof(MedicalRecords));
                 }
             }
@@ -1226,11 +1226,11 @@ public class ClinicController(
 
             if (appointment is not null && IsWaitingForDoctor(appointment.Status))
             {
-                appointment.Status = "Äang khÃ¡m";
+                appointment.Status = "Đang khám";
             }
 
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = form.Id.HasValue ? "ÄÃ£ cáº­p nháº­t bá»‡nh Ã¡n." : "ÄÃ£ lÆ°u bá»‡nh Ã¡n má»›i.";
+            TempData["SuccessMessage"] = form.Id.HasValue ? "Đã cập nhật bệnh án." : "Đã lưu bệnh án mới.";
             return RedirectToAction(nameof(MedicalRecords));
         }
         catch (Exception ex)
@@ -1249,7 +1249,7 @@ public class ClinicController(
             var record = await db.MedicalRecords.FirstOrDefaultAsync(x => x.Id == id);
             if (record is null)
             {
-                TempData["WorkflowWarning"] = "KhÃ´ng tÃ¬m tháº¥y bá»‡nh Ã¡n cáº§n xÃ³a.";
+                TempData["WorkflowWarning"] = "Không tìm thấy bệnh án cần xóa.";
                 return RedirectToAction(nameof(MedicalRecords));
             }
 
@@ -1258,14 +1258,14 @@ public class ClinicController(
                 var doctor = await TryGetCurrentDoctorAsync();
                 if (doctor is null || record.DoctorId != doctor.Id)
                 {
-                    TempData["WorkflowWarning"] = "Báº¡n chá»‰ Ä‘Æ°á»£c xÃ³a bá»‡nh Ã¡n cá»§a chÃ­nh mÃ¬nh.";
+                    TempData["WorkflowWarning"] = "Bạn chỉ được xóa bệnh án của chính mình.";
                     return RedirectToAction(nameof(MedicalRecords));
                 }
             }
 
             db.MedicalRecords.Remove(record);
             await db.SaveChangesAsync();
-            TempData["SuccessMessage"] = "ÄÃ£ xÃ³a bá»‡nh Ã¡n.";
+            TempData["SuccessMessage"] = "Đã xóa bệnh án.";
         }
         catch (Exception ex)
         {
@@ -1345,8 +1345,8 @@ public class ClinicController(
         var to = appointmentTime.AddMinutes(29);
         return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
             && x.Id != excludeId
-            && x.Status != "Há»§y"
-            && x.Status != "ÄÃ£ há»§y"
+            && x.Status != "Hủy"
+            && x.Status != "Đã hủy"
             && x.AppointmentTime >= from
             && x.AppointmentTime <= to);
     }
@@ -1403,7 +1403,7 @@ public class ClinicController(
         var doctor = await TryGetCurrentDoctorAsync();
         if (doctor is null)
         {
-            TempData["WorkflowWarning"] = "TÃ i khoáº£n bÃ¡c sÄ© chÆ°a Ä‘Æ°á»£c liÃªn káº¿t vá»›i há»“ sÆ¡ bÃ¡c sÄ©.";
+            TempData["WorkflowWarning"] = "Tài khoản bác sĩ chưa được liên kết với hồ sơ bác sĩ.";
             model.UpcomingAppointments = [];
             model.AppointmentsToday = 0;
             model.Patients = 0;
@@ -1543,7 +1543,7 @@ public class ClinicController(
 
         patient = new Patient
         {
-            FullName = string.IsNullOrWhiteSpace(currentUser.FullName) ? currentUser.Email ?? currentUser.UserName ?? "Bá»‡nh nhÃ¢n" : currentUser.FullName,
+            FullName = string.IsNullOrWhiteSpace(currentUser.FullName) ? currentUser.Email ?? currentUser.UserName ?? "Bệnh nhân" : currentUser.FullName,
             Gender = "Nam",
             DateOfBirth = DateTime.Today.AddYears(-18),
             Phone = currentUser.PhoneNumber ?? "",
@@ -1908,17 +1908,17 @@ public class ClinicController(
 
                 if (expired)
                 {
-                    notes.Add("ÄÃ£ háº¿t háº¡n");
+                    notes.Add("Đã hết hạn");
                 }
 
                 if (lowStock)
                 {
-                    notes.Add("Tá»“n kho tháº¥p");
+                    notes.Add("Tồn kho thấp");
                 }
 
                 if (allergyWarning)
                 {
-                    notes.Add("Bá»‡nh nhÃ¢n cÃ³ cáº£nh bÃ¡o dá»‹ á»©ng");
+                    notes.Add("Bệnh nhân có cảnh báo dị ứng");
                 }
 
                 return new MedicineSafetyViewModel
@@ -1932,7 +1932,7 @@ public class ClinicController(
                     IsExpired = expired,
                     IsLowStock = lowStock,
                     HasAllergyWarning = allergyWarning,
-                    Note = notes.Count == 0 ? "Sáºµn sÃ ng kÃª Ä‘Æ¡n" : string.Join(" | ", notes)
+                    Note = notes.Count == 0 ? "Sẵn sàng kê đơn" : string.Join(" | ", notes)
                 };
             })
             .ToList();
@@ -1945,7 +1945,7 @@ public class ClinicController(
         var items = NormalizePrescriptionRows(form).Items.Where(x => x.HasInput).ToList();
         if (items.Count == 0)
         {
-            errors.Add("Cáº§n kÃª Ã­t nháº¥t má»™t thuá»‘c cho Ä‘Æ¡n.");
+            errors.Add("Cần kê ít nhất một thuốc cho đơn.");
             return (errors, [], 0);
         }
 
@@ -1963,14 +1963,14 @@ public class ClinicController(
 
             if (!item.MedicineId.HasValue)
             {
-                errors.Add("Má»—i dÃ²ng thuá»‘c cáº§n chá»n thuá»‘c cá»¥ thá»ƒ.");
+                errors.Add("Mỗi dòng thuốc cần chọn thuốc cụ thể.");
                 itemHasErrors = true;
                 continue;
             }
 
             if (!medicines.TryGetValue(item.MedicineId.Value, out var medicine))
             {
-                errors.Add("CÃ³ thuá»‘c trong Ä‘Æ¡n khÃ´ng cÃ²n tá»“n táº¡i.");
+                errors.Add("Có thuốc trong đơn không còn tồn tại.");
                 itemHasErrors = true;
                 continue;
             }
@@ -1983,49 +1983,49 @@ public class ClinicController(
 
             if (!selectedMedicineIds.Add(medicine.Id))
             {
-                errors.Add($"Thuá»‘c {medicine.Name} Ä‘ang bá»‹ nháº­p láº·p.");
+                errors.Add($"Thuốc {medicine.Name} đang bị nhập lặp.");
                 itemHasErrors = true;
             }
 
             if (item.Quantity <= 0)
             {
-                errors.Add($"Thuá»‘c {medicine.Name} cáº§n sá»‘ lÆ°á»£ng lá»›n hÆ¡n 0.");
+                errors.Add($"Thuốc {medicine.Name} cần số lượng lớn hơn 0.");
                 itemHasErrors = true;
             }
 
             if (string.IsNullOrWhiteSpace(dosage))
             {
-                errors.Add($"Thuá»‘c {medicine.Name} cáº§n nháº­p liá»u dÃ¹ng.");
+                errors.Add($"Thuốc {medicine.Name} cần nhập liều dùng.");
                 itemHasErrors = true;
             }
 
             if (string.IsNullOrWhiteSpace(route))
             {
-                errors.Add($"Thuá»‘c {medicine.Name} cáº§n nháº­p Ä‘Æ°á»ng dÃ¹ng.");
+                errors.Add($"Thuốc {medicine.Name} cần nhập đường dùng.");
                 itemHasErrors = true;
             }
 
             if (string.IsNullOrWhiteSpace(usageInstruction))
             {
-                errors.Add($"Thuá»‘c {medicine.Name} cáº§n nháº­p hÆ°á»›ng dáº«n sá»­ dá»¥ng.");
+                errors.Add($"Thuốc {medicine.Name} cần nhập hướng dẫn sử dụng.");
                 itemHasErrors = true;
             }
 
             if (medicine.QuantityInStock < item.Quantity)
             {
-                errors.Add($"Thuá»‘c {medicine.Name} khÃ´ng Ä‘á»§ tá»“n kho. CÃ²n {medicine.QuantityInStock} {medicine.Unit}.");
+                errors.Add($"Thuốc {medicine.Name} không đủ tồn kho. Còn {medicine.QuantityInStock} {medicine.Unit}.");
                 itemHasErrors = true;
             }
 
             if (medicine.ExpiryDate.Date < DateTime.Today)
             {
-                errors.Add($"Thuá»‘c {medicine.Name} Ä‘Ã£ háº¿t háº¡n.");
+                errors.Add($"Thuốc {medicine.Name} đã hết hạn.");
                 itemHasErrors = true;
             }
 
             if (HasAllergyWarning(patient?.AllergyNotes, medicine.Name))
             {
-                errors.Add($"Bá»‡nh nhÃ¢n cÃ³ cáº£nh bÃ¡o dá»‹ á»©ng vá»›i thuá»‘c {medicine.Name}.");
+                errors.Add($"Bệnh nhân có cảnh báo dị ứng với thuốc {medicine.Name}.");
                 itemHasErrors = true;
             }
 
@@ -2117,7 +2117,7 @@ public class ClinicController(
     }
 
     private static string DatabaseWarning(Exception ex) =>
-        $"ChÆ°a káº¿t ná»‘i Ä‘Æ°á»£c SQL Server: {ex.GetBaseException().Message}";
+        $"Chưa kết nối được SQL Server: {ex.GetBaseException().Message}";
 
     private static List<Patient> DemoPatients() =>
     [
