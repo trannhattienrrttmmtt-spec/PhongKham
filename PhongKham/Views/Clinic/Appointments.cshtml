@@ -4,6 +4,7 @@
     var patients = ViewBag.Patients as List<Patient> ?? [];
     var doctors = ViewBag.Doctors as List<Doctor> ?? [];
     var statusOptions = ViewBag.StatusOptions as string[] ?? [];
+    var scheduleSuggestions = ViewBag.ScheduleSuggestions as List<global::PhongKham.Services.ScheduleSuggestion> ?? [];
     var medicalRecordMap = ViewBag.MedicalRecordMap as Dictionary<int, int> ?? new Dictionary<int, int>();
     var prescriptionMap = ViewBag.PrescriptionMap as Dictionary<int, int> ?? new Dictionary<int, int>();
     var isPatient = User.IsInRole("BenhNhan");
@@ -59,6 +60,34 @@
             <button class="btn btn-primary">@(isPatient ? "Gửi lịch hẹn" : "Lưu lịch hẹn")</button>
         </form>
     </div>
+}
+
+@if (isAdmin)
+{
+    <section class="panel algorithm-panel">
+        <div class="panel-head">
+            <div>
+                <h2>Thuật toán gợi ý xếp lịch</h2>
+                <p>Greedy scoring + hàng đợi ưu tiên theo tải bác sĩ, ngày và khung giờ còn trống.</p>
+            </div>
+        </div>
+        <div class="algorithm-list">
+            @foreach (var suggestion in scheduleSuggestions)
+            {
+                <div class="algorithm-row">
+                    <span class="algorithm-score">@suggestion.Score</span>
+                    <div>
+                        <strong>@suggestion.Doctor.FullName</strong>
+                        <small>@suggestion.Slot.ToString("dd/MM/yyyy HH:mm") · tải ngày @suggestion.DoctorLoad lịch · @suggestion.Reason</small>
+                    </div>
+                </div>
+            }
+            @if (!scheduleSuggestions.Any())
+            {
+                <p class="text-muted">Chưa có dữ liệu gợi ý lịch.</p>
+            }
+        </div>
+    </section>
 }
 
 <div class="panel">

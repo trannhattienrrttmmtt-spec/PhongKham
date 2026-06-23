@@ -257,6 +257,7 @@ public class ClinicController(
     {
         var isDoctor = User.IsInRole("BacSi");
         var isPatient = User.IsInRole("BenhNhan");
+        var isAdmin = User.IsInRole("Admin");
         var currentDoctor = isDoctor ? await TryGetCurrentDoctorAsync() : null;
 
         if (isDoctor && currentDoctor is null)
@@ -326,6 +327,9 @@ public class ClinicController(
         ViewBag.Patients = patients;
         ViewBag.Doctors = doctors;
         ViewBag.StatusOptions = DoctorStatusTransitions;
+        ViewBag.ScheduleSuggestions = isAdmin
+            ? algorithmService.BuildScheduleSuggestions(appointments, doctors, DateTime.Today.AddDays(1), days: 5, take: 6)
+            : new List<ScheduleSuggestion>();
         ViewBag.MedicalRecordMap = records
             .Where(x => x.AppointmentId.HasValue)
             .GroupBy(x => x.AppointmentId!.Value)
