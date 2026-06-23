@@ -8,7 +8,6 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
 {
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Doctor> Doctors => Set<Doctor>();
-    public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<Medicine> Medicines => Set<Medicine>();
     public DbSet<Prescription> Prescriptions => Set<Prescription>();
@@ -54,7 +53,6 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
         modelBuilder.Entity<Appointment>().HasIndex(x => x.AppointmentTime);
         modelBuilder.Entity<MedicalRecord>().HasIndex(x => x.AppointmentId).IsUnique().HasFilter("[AppointmentId] IS NOT NULL");
         modelBuilder.Entity<Prescription>().HasIndex(x => x.AppointmentId);
-        modelBuilder.Entity<Room>().HasIndex(x => x.RoomNumber).IsUnique();
         modelBuilder.Entity<Specialty>().HasIndex(x => x.Code).IsUnique();
         modelBuilder.Entity<Medicine>().HasIndex(x => x.Name);
         modelBuilder.Entity<Medicine>().HasIndex(x => x.Code);
@@ -78,8 +76,5 @@ public class ClinicDbContext(DbContextOptions<ClinicDbContext> options) : Identi
             .WithOne(x => x.Prescription)
             .HasForeignKey(x => x.PrescriptionId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        modelBuilder.Entity<Room>()
-            .ToTable(t => t.HasCheckConstraint("CK_Room_OccupiedBeds", "[OccupiedBeds] <= [Capacity]"));
     }
 }

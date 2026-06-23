@@ -24,9 +24,6 @@ public class DoctorSchedule : AuditableEntity
     public DayOfWeek DayOfWeek { get; set; }
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
-
-    [StringLength(80)]
-    public string RoomCode { get; set; } = "";
 }
 
 public class MedicineCategory : AuditableEntity

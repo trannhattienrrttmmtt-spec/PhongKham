@@ -36,19 +36,6 @@ public class Doctor
     public string Status { get; set; } = "Đang làm việc";
 }
 
-public class Room
-{
-    public int Id { get; set; }
-    [Required, StringLength(40)]
-    public string RoomNumber { get; set; } = "";
-    [StringLength(80)]
-    public string Department { get; set; } = "";
-    public int Capacity { get; set; } = 1;
-    public int OccupiedBeds { get; set; }
-    [StringLength(80)]
-    public string Status { get; set; } = "Sẵn sàng";
-}
-
 public class Appointment
 {
     public int Id { get; set; }

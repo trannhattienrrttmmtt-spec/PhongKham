@@ -233,25 +233,6 @@ public class ClinicController(
         return RedirectToAction(nameof(Doctors));
     }
 
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Rooms() => View(await TryLoad(() => db.Rooms.OrderBy(x => x.RoomNumber).ToListAsync(), DemoRooms));
-
-    [HttpPost, ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> AddRoom(Room room)
-    {
-        if (ModelState.IsValid)
-        {
-            await TryExecuteAsync(async () =>
-            {
-                db.Rooms.Add(room);
-                await db.SaveChangesAsync();
-            });
-        }
-
-        return RedirectToAction(nameof(Rooms));
-    }
-
     [Authorize(Roles = "Admin,BacSi,BenhNhan")]
     public async Task<IActionResult> Appointments()
     {
@@ -2138,13 +2119,6 @@ public class ClinicController(
         new() { Id = 1, FullName = "BS. Pham Quoc Huy", Specialty = "Noi tong quat", Phone = "02838111111", AccountEmail = "bacsi@phongkham.local", Status = "Dang lam viec" },
         new() { Id = 2, FullName = "BS. Vo Thanh Tam", Specialty = "Nhi khoa", Phone = "02838222222", Status = "Dang lam viec" },
         new() { Id = 3, FullName = "BS. Dang Hoai Linh", Specialty = "Tim mach", Phone = "02838333333", Status = "Dang lam viec" }
-    ];
-
-    private static List<Room> DemoRooms() =>
-    [
-        new() { RoomNumber = "P101", Department = "Kham benh", Capacity = 4, OccupiedBeds = 1, Status = "San sang" },
-        new() { RoomNumber = "P202", Department = "Noi tru", Capacity = 8, OccupiedBeds = 5, Status = "San sang" },
-        new() { RoomNumber = "P301", Department = "Cap cuu", Capacity = 6, OccupiedBeds = 2, Status = "Uu tien" }
     ];
 
     private static List<Medicine> DemoMedicines() =>

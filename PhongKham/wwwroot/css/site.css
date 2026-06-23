@@ -3706,28 +3706,6 @@ a { text-decoration: none; }
   font-size: 0.72rem;
   color: var(--muted);
 }
-.admin-chat-room {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.admin-chat-room-head {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--surface);
-}
-.admin-chat-room-head strong {
-  font-size: 1rem;
-  display: block;
-}
-.admin-chat-room-head small {
-  color: var(--muted);
-  font-size: 0.78rem;
-  display: block;
-}
 .admin-thread-messages {
   flex-grow: 1;
   padding: 20px;

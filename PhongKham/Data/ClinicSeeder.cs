@@ -166,10 +166,6 @@ public static class ClinicSeeder
 
         db.Patients.AddRange(patients);
         db.Doctors.AddRange(doctors);
-        db.Rooms.AddRange(
-            new Room { RoomNumber = "P101", Department = "Kham benh", Capacity = 4, OccupiedBeds = 1 },
-            new Room { RoomNumber = "P202", Department = "Noi tru", Capacity = 8, OccupiedBeds = 5 },
-            new Room { RoomNumber = "P301", Department = "Cap cuu", Capacity = 6, OccupiedBeds = 2, Status = "Uu tien" });
         db.Medicines.AddRange(medicines);
         db.UserAccounts.AddRange(
             new UserAccount { UserName = "admin", DisplayName = "Quan tri he thong", Role = "Quan tri" },
