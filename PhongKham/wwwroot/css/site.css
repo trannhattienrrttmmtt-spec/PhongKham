@@ -1002,6 +1002,27 @@ a { text-decoration: none; }
   width: 42px;
 }
 
+.doctor-priority-panel {
+  margin-bottom: 24px;
+}
+
+.priority-row {
+  align-items: flex-start;
+}
+
+.priority-main {
+  flex: 1 1 auto;
+  min-width: 220px;
+}
+
+.priority-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .forecast-grid {
   display: grid;
   gap: 12px;

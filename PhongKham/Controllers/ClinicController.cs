@@ -330,6 +330,9 @@ public class ClinicController(
         ViewBag.ScheduleSuggestions = isAdmin
             ? algorithmService.BuildScheduleSuggestions(appointments, doctors, DateTime.Today.AddDays(1), days: 5, take: 6)
             : new List<ScheduleSuggestion>();
+        ViewBag.AppointmentPriorities = isDoctor
+            ? algorithmService.BuildAppointmentPriorities(appointments, DateTime.Now, take: 6)
+            : new List<AppointmentPriority>();
         ViewBag.MedicalRecordMap = records
             .Where(x => x.AppointmentId.HasValue)
             .GroupBy(x => x.AppointmentId!.Value)

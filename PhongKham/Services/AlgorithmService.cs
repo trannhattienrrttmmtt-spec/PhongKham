@@ -1,4 +1,6 @@
 using PhongKham.Models;
+using System.Globalization;
+using System.Text;
 
 namespace PhongKham.Services;
 
@@ -67,6 +69,83 @@ public class AlgorithmService : IAlgorithmService
         return suggestions
             .OrderByDescending(x => x.Score)
             .ThenBy(x => x.Slot)
+            .Take(take)
+            .ToList();
+    }
+
+    public List<AppointmentPriority> BuildAppointmentPriorities(
+        IReadOnlyList<Appointment> appointments,
+        DateTime now,
+        int take = 6)
+    {
+        return appointments
+            .Where(x => !IsCancelled(x.Status) && !IsCompleted(x.Status))
+            .Select(x =>
+            {
+                var score = 20;
+                var reasons = new List<string>();
+                var normalizedStatus = NormalizeVietnamese(x.Status ?? "");
+                var minutesUntilVisit = (x.AppointmentTime - now).TotalMinutes;
+
+                if (x.AppointmentTime.Date == now.Date)
+                {
+                    score += 30;
+                    reasons.Add("trong ngày");
+                }
+
+                if (minutesUntilVisit < -15)
+                {
+                    score += 35;
+                    reasons.Add("đã quá giờ");
+                }
+                else if (minutesUntilVisit is >= -15 and <= 45)
+                {
+                    score += 32;
+                    reasons.Add("sắp đến lượt");
+                }
+
+                if (normalizedStatus.Contains("da dat lich") || normalizedStatus.Contains("da xac nhan") || normalizedStatus.Contains("dang cho"))
+                {
+                    score += 15;
+                    reasons.Add("chờ xử lý");
+                }
+                if (normalizedStatus.Contains("dang kham"))
+                {
+                    score += 25;
+                    reasons.Add("đang khám");
+                }
+
+                var reasonText = NormalizeVietnamese(x.Reason ?? "");
+                if (new[] { "dau nguc", "kho tho", "sot cao", "choang", "ngat", "dau bung" }.Any(reasonText.Contains))
+                {
+                    score += 18;
+                    reasons.Add("triệu chứng cần chú ý");
+                }
+
+                var patient = x.Patient;
+                if (patient is not null && patient.DateOfBirth != default)
+                {
+                    var age = now.Year - patient.DateOfBirth.Year;
+                    if (patient.DateOfBirth.Date > now.Date.AddYears(-age))
+                    {
+                        age--;
+                    }
+                    if (age is < 6 or >= 65)
+                    {
+                        score += 10;
+                        reasons.Add("nhóm tuổi cần ưu tiên");
+                    }
+                }
+
+                if (!reasons.Any())
+                {
+                    reasons.Add("theo thứ tự lịch hẹn");
+                }
+
+                return new AppointmentPriority(x, Math.Max(1, score), string.Join(", ", reasons.Distinct()));
+            })
+            .OrderByDescending(x => x.Score)
+            .ThenBy(x => x.Appointment.AppointmentTime)
             .Take(take)
             .ToList();
     }
@@ -252,6 +331,15 @@ public class AlgorithmService : IAlgorithmService
 
     private static string NormalizeText(string value)
         => new(value.Trim().ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
+
+    private static string NormalizeVietnamese(string value)
+    {
+        var normalized = value.Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD);
+        var chars = normalized
+            .Where(c => CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            .Select(c => c == 'đ' ? 'd' : c);
+        return new string(chars.ToArray()).Normalize(NormalizationForm.FormC);
+    }
 
     private static bool IsCancelled(string status)
         => status.Contains("huy", StringComparison.OrdinalIgnoreCase)

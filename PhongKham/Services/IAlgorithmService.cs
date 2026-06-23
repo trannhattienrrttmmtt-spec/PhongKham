@@ -11,6 +11,11 @@ public interface IAlgorithmService
         int days = 3,
         int take = 5);
 
+    List<AppointmentPriority> BuildAppointmentPriorities(
+        IReadOnlyList<Appointment> appointments,
+        DateTime now,
+        int take = 6);
+
     List<PatientCluster> ClusterPatients(
         IReadOnlyList<Patient> patients,
         IReadOnlyList<Appointment> appointments,
@@ -36,6 +41,11 @@ public record ScheduleSuggestion(
     DateTime Slot,
     int Score,
     int DoctorLoad,
+    string Reason);
+
+public record AppointmentPriority(
+    Appointment Appointment,
+    int Score,
     string Reason);
 
 public record PatientCluster(
