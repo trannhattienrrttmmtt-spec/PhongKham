@@ -601,6 +601,39 @@ public static class ClinicSeeder
             changed = true;
         }
 
+        if (changed)
+        {
+            await db.SaveChangesAsync();
+            changed = false;
+        }
+
+        if (!await db.Payments.AnyAsync())
+        {
+            var payableInvoices = await db.Invoices
+                .Include(x => x.Appointment)
+                .Where(x => x.PaymentStatus != "Cancelled")
+                .OrderBy(x => x.Id)
+                .Take(4)
+                .ToListAsync();
+
+            for (var index = 0; index < payableInvoices.Count; index++)
+            {
+                var invoice = payableInvoices[index];
+                invoice.PaymentStatus = "Paid";
+                invoice.UpdatedAt = DateTime.Now;
+                db.Payments.Add(new Payment
+                {
+                    InvoiceId = invoice.Id,
+                    Amount = invoice.TotalAmount,
+                    Method = index % 2 == 0 ? "BankQR" : "Cash",
+                    PaidAt = DateTime.Today.AddDays(-index * 3).AddHours(9 + index),
+                    CreatedBy = "seed"
+                });
+            }
+
+            changed = payableInvoices.Count > 0;
+        }
+
         if (!await db.InventoryLots.AnyAsync())
         {
             var medicines = await db.Medicines.OrderBy(x => x.Id).ToListAsync();
