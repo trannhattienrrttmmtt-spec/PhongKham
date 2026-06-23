@@ -16,7 +16,7 @@
         _ => "Cổng bệnh nhân"
     };
     ViewData["Title"] = title;
-    var upcoming = Model.Appointments.Where(x => x.AppointmentTime >= DateTime.Today && x.Status != "Đã hủy").OrderBy(x => x.AppointmentTime).ToList();
+    var upcoming = Model.Appointments.Where(x => x.AppointmentTime >= DateTime.Today && !IsCancelledAppointmentStatus(x.Status)).OrderBy(x => x.AppointmentTime).ToList();
     var allSpecialties = Model.Specialties.Any()
         ? Model.Specialties.ToList()
         : new List<Specialty>
@@ -27,6 +27,29 @@
             new() { Name = "Tai Mũi Họng", Description = "Chẩn đoán và điều trị chuyên sâu." }
         };
     var featuredSpecialties = allSpecialties.Take(6).ToList();
+}
+
+@functions {
+    private static string AppointmentStatusName(string? status)
+    {
+        var value = status?.Trim();
+        return value switch
+        {
+            null or "" => "Đang cập nhật",
+            "Da dat lich" or "ÄÃ£ Ä‘áº·t lá»‹ch" => "Đã đặt lịch",
+            "Da xac nhan" or "ÄÃ£ xÃ¡c nháº­n" => "Đã xác nhận",
+            "Dang cho" or "Äang chá»" => "Đang chờ",
+            "Dang kham" or "Äang khÃ¡m" => "Đang khám",
+            "Hoan tat" or "HoÃ n táº¥t" => "Hoàn tất",
+            "Huy" or "Há»§y" => "Hủy",
+            "Da huy" or "ÄÃ£ há»§y" => "Đã hủy",
+            _ => value
+        };
+    }
+
+    private static bool IsCompletedAppointmentStatus(string? status) => AppointmentStatusName(status) == "Hoàn tất";
+    private static bool IsCancelledAppointmentStatus(string? status) => AppointmentStatusName(status) is "Hủy" or "Đã hủy";
+    private static bool IsFinalAppointmentStatus(string? status) => IsCompletedAppointmentStatus(status) || IsCancelledAppointmentStatus(status);
 }
 
 @if (TempData["PortalSuccess"] is string success)
@@ -181,7 +204,8 @@ else if (Model.Page == "Appointments")
                 <tbody>
                 @foreach (var item in Model.Appointments)
                 {
-                    <tr data-appointment-row data-status="@item.Status" data-date="@item.AppointmentTime.ToString("yyyy-MM-dd")"><td><strong>LH-@item.Id.ToString("D5")</strong></td><td>@item.Doctor?.FullName</td><td>@item.Doctor?.Specialty</td><td>@item.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@item.AppointmentTime.ToString("HH:mm")</td><td><span class="status-pill">@item.Status</span></td><td class="row-actions"><a asp-action="AppointmentDetail" asp-route-id="@item.Id">Chi tiết</a>@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch</a>}@if(item.Status != "Hoàn tất" && item.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post" data-confirm="Bạn chắc chắn muốn hủy lịch khám này?"><input type="hidden" name="id" value="@item.Id"/><button>Hủy lịch</button></form>}</td></tr>
+                    var statusName = AppointmentStatusName(item.Status);
+                    <tr data-appointment-row data-status="@statusName" data-date="@item.AppointmentTime.ToString("yyyy-MM-dd")"><td><strong>LH-@item.Id.ToString("D5")</strong></td><td>@item.Doctor?.FullName</td><td>@item.Doctor?.Specialty</td><td>@item.AppointmentTime.ToString("dd/MM/yyyy")</td><td>@item.AppointmentTime.ToString("HH:mm")</td><td><span class="status-pill">@statusName</span></td><td class="row-actions"><a asp-action="AppointmentDetail" asp-route-id="@item.Id">Chi tiết</a>@if(!IsFinalAppointmentStatus(item.Status) && item.AppointmentTime > DateTime.Now.AddHours(4)){<a asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch</a>}@if(!IsFinalAppointmentStatus(item.Status)){<form asp-action="CancelAppointment" method="post" data-confirm="Bạn chắc chắn muốn hủy lịch khám này?"><input type="hidden" name="id" value="@item.Id"/><button>Hủy lịch</button></form>}</td></tr>
                 }
                 @if (!Model.Appointments.Any())
                 {
@@ -213,7 +237,8 @@ else if (Model.Page == "EditAppointment")
 else if (Model.Page == "AppointmentDetail")
 {
     var item = Model.Appointment;
-    <div class="portal-page-head"><div><a class="back-link" asp-action="Appointments">← Quay lại danh sách</a><h1>Chi tiết lịch khám</h1><p>Mã lịch: LH-@(item?.Id.ToString("D5") ?? "00000")</p></div><span class="status-pill large">@(item?.Status ?? "Đang cập nhật")</span></div>
+    var statusName = AppointmentStatusName(item?.Status);
+    <div class="portal-page-head"><div><a class="back-link" asp-action="Appointments">← Quay lại danh sách</a><h1>Chi tiết lịch khám</h1><p>Mã lịch: LH-@(item?.Id.ToString("D5") ?? "00000")</p></div><span class="status-pill large">@statusName</span></div>
     <div class="detail-grid">
         <div class="portal-card detail-main">
             <div class="appointment-date-banner"><div><strong>@(item?.AppointmentTime.ToString("dd") ?? "--")</strong><span>Tháng @(item?.AppointmentTime.Month ?? 0)</span></div><div><span>Thời gian khám</span><h2>@(item?.AppointmentTime.ToString("dddd, dd/MM/yyyy") ?? "Chưa có")</h2><strong>@(item?.AppointmentTime.ToString("HH:mm") ?? "--:--")</strong></div></div>
@@ -221,7 +246,7 @@ else if (Model.Page == "AppointmentDetail")
             <div class="info-section"><h2>Thông tin bệnh nhân</h2><div class="info-grid"><div><span>Họ và tên</span><strong>@Model.Patient.FullName</strong></div><div><span>Số điện thoại</span><strong>@Model.Patient.Phone</strong></div><div><span>Ngày sinh</span><strong>@Model.Patient.DateOfBirth.ToString("dd/MM/yyyy")</strong></div><div><span>Giới tính</span><strong>@Model.Patient.Gender</strong></div></div></div>
             <div class="info-section"><h2>Triệu chứng / lý do khám</h2><p class="symptom-box">@(item?.Reason ?? "Chưa có thông tin")</p></div>
         </div>
-        <aside class="portal-card timeline-card"><h2>Trạng thái lịch hẹn</h2><div class="status-timeline"><div class="done"><span></span><strong>Đã đặt lịch</strong><small>Thông tin đã được ghi nhận</small></div><div class="@(item?.Status == "Đã xác nhận" || item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Phòng khám xác nhận</strong><small>Nhân viên kiểm tra lịch bác sĩ</small></div><div class="@(item?.Status == "Hoàn tất" ? "done" : "")"><span></span><strong>Hoàn tất khám</strong><small>Kết quả được cập nhật vào hồ sơ</small></div></div>@if(item is not null && item.Status != "Hoàn tất" && item.Status != "Đã hủy" && item.AppointmentTime > DateTime.Now.AddHours(4)){<a class="btn btn-outline-primary w-100 mb-2" asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch khám</a>}@if(item?.Status != "Hoàn tất" && item?.Status != "Đã hủy"){<form asp-action="CancelAppointment" method="post"><input type="hidden" name="id" value="@item?.Id"/><button class="btn btn-outline-danger w-100">Hủy lịch khám</button></form>}</aside>
+        <aside class="portal-card timeline-card"><h2>Trạng thái lịch hẹn</h2><div class="status-timeline"><div class="done"><span></span><strong>Đã đặt lịch</strong><small>Thông tin đã được ghi nhận</small></div><div class="@(statusName == "Đã xác nhận" || statusName == "Hoàn tất" ? "done" : "")"><span></span><strong>Phòng khám xác nhận</strong><small>Nhân viên kiểm tra lịch bác sĩ</small></div><div class="@(statusName == "Hoàn tất" ? "done" : "")"><span></span><strong>Hoàn tất khám</strong><small>Kết quả được cập nhật vào hồ sơ</small></div></div>@if(item is not null && !IsFinalAppointmentStatus(item.Status) && item.AppointmentTime > DateTime.Now.AddHours(4)){<a class="btn btn-outline-primary w-100 mb-2" asp-action="EditAppointment" asp-route-id="@item.Id">Sửa lịch khám</a>}@if(item is not null && !IsFinalAppointmentStatus(item.Status)){<form asp-action="CancelAppointment" method="post"><input type="hidden" name="id" value="@item.Id"/><button class="btn btn-outline-danger w-100">Hủy lịch khám</button></form>}</aside>
     </div>
 }
 else if (Model.Page == "Results")

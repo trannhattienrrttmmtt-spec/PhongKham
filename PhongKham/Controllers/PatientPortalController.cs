@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -61,7 +61,7 @@ public class PatientPortalController(
         model.Appointment = model.Appointments.FirstOrDefault(x => x.Id == id);
         if (model.Appointment is null || !CanEditPatientAppointment(model.Appointment))
         {
-            TempData["PortalError"] = "Lá»‹ch khÃ¡m nÃ y khÃ´ng thá»ƒ chá»‰nh sá»­a.";
+            TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
             return RedirectToAction(nameof(Appointments));
         }
         return View("Portal", model);
@@ -83,7 +83,7 @@ public class PatientPortalController(
     {
         if (!ModelState.IsValid)
         {
-            TempData["PortalError"] = "ThÃ´ng tin chÆ°a há»£p lá»‡. Vui lÃ²ng kiá»ƒm tra láº¡i.";
+            TempData["PortalError"] = "Thông tin chưa hợp lệ. Vui lòng kiểm tra lại.";
             return RedirectToAction(nameof(Profile));
         }
 
@@ -97,7 +97,7 @@ public class PatientPortalController(
         patient.Gender = input.Gender;
         await userManager.UpdateAsync(user);
         await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "ÄÃ£ cáº­p nháº­t há»“ sÆ¡ cÃ¡ nhÃ¢n.";
+        TempData["PortalSuccess"] = "Đã cập nhật hồ sơ cá nhân.";
         return RedirectToAction(nameof(Profile));
     }
 
@@ -106,7 +106,7 @@ public class PatientPortalController(
     {
         if (!ModelState.IsValid)
         {
-            TempData["PortalError"] = "Máº­t kháº©u má»›i chÆ°a há»£p lá»‡ hoáº·c xÃ¡c nháº­n chÆ°a khá»›p.";
+            TempData["PortalError"] = "Mật khẩu mới chưa hợp lệ hoặc xác nhận chưa khớp.";
             return RedirectToAction(nameof(Profile));
         }
 
@@ -119,12 +119,12 @@ public class PatientPortalController(
         var result = await userManager.ChangePasswordAsync(user, input.CurrentPassword, input.NewPassword);
         if (!result.Succeeded)
         {
-            TempData["PortalError"] = "KhÃ´ng thá»ƒ Ä‘á»•i máº­t kháº©u. HÃ£y kiá»ƒm tra máº­t kháº©u hiá»‡n táº¡i.";
+            TempData["PortalError"] = "Không thể đổi mật khẩu. Hãy kiểm tra mật khẩu hiện tại.";
             return RedirectToAction(nameof(Profile));
         }
 
         await signInManager.RefreshSignInAsync(user);
-        TempData["PortalSuccess"] = "Äá»•i máº­t kháº©u thÃ nh cÃ´ng.";
+        TempData["PortalSuccess"] = "Đổi mật khẩu thành công.";
         return RedirectToAction(nameof(Profile));
     }
 
@@ -134,12 +134,12 @@ public class PatientPortalController(
         var (_, patient) = await GetCurrentPortalAsync();
         if (appointmentDate.Date < DateTime.Today || !await db.Doctors.AnyAsync(x => x.Id == doctorId))
         {
-            TempData["PortalError"] = "NgÃ y khÃ¡m hoáº·c bÃ¡c sÄ© khÃ´ng há»£p lá»‡.";
+            TempData["PortalError"] = "Ngày khám hoặc bác sĩ không hợp lệ.";
             return RedirectToAction(nameof(Book));
         }
         if (string.IsNullOrWhiteSpace(symptoms))
         {
-            TempData["PortalError"] = "Vui lÃ²ng nháº­p triá»‡u chá»©ng hoáº·c lÃ½ do khÃ¡m.";
+            TempData["PortalError"] = "Vui lòng nhập triệu chứng hoặc lý do khám.";
             return RedirectToAction(nameof(Book));
         }
         if (!TimeOnly.TryParse(appointmentTime, out var time))
@@ -149,7 +149,7 @@ public class PatientPortalController(
         var scheduledAt = appointmentDate.Date.Add(time.ToTimeSpan());
         if (await HasActiveDoctorConflictAsync(doctorId, scheduledAt))
         {
-            TempData["PortalError"] = "BÃ¡c sÄ© Ä‘Ã£ cÃ³ lá»‹ch trong khung giá» nÃ y. Vui lÃ²ng chá»n giá» khÃ¡c.";
+            TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
             return RedirectToAction(nameof(Book), new { doctorId });
         }
 
@@ -160,7 +160,7 @@ public class PatientPortalController(
             AppointmentTime = scheduledAt,
             Reason = symptoms,
             Fee = 150000,
-            Status = "ÄÃ£ Ä‘áº·t lá»‹ch"
+            Status = "Đã đặt lịch"
         };
         db.Appointments.Add(appointment);
         await db.SaveChangesAsync();
@@ -178,7 +178,7 @@ public class PatientPortalController(
             CreatedBy = User.Identity?.Name ?? ""
         });
         await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "Äáº·t lá»‹ch thÃ nh cÃ´ng. PhÃ²ng khÃ¡m sáº½ xÃ¡c nháº­n sá»›m.";
+        TempData["PortalSuccess"] = "Đặt lịch thành công. Phòng khám sẽ xác nhận sớm.";
         return RedirectToAction(nameof(Appointments));
     }
 
@@ -189,30 +189,30 @@ public class PatientPortalController(
         var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == input.Id && x.PatientId == patient.Id);
         if (appointment is null || !CanEditPatientAppointment(appointment))
         {
-            TempData["PortalError"] = "Lá»‹ch khÃ¡m nÃ y khÃ´ng thá»ƒ chá»‰nh sá»­a.";
+            TempData["PortalError"] = "Lịch khám này không thể chỉnh sửa.";
             return RedirectToAction(nameof(Appointments));
         }
         if (!ModelState.IsValid || input.AppointmentDate.Date < DateTime.Today
             || !TimeOnly.TryParse(input.AppointmentTime, out var time)
             || !await db.Doctors.AnyAsync(x => x.Id == input.DoctorId))
         {
-            TempData["PortalError"] = "ThÃ´ng tin lá»‹ch khÃ¡m chÆ°a há»£p lá»‡.";
+            TempData["PortalError"] = "Thông tin lịch khám chưa hợp lệ.";
             return RedirectToAction(nameof(EditAppointment), new { id = input.Id });
         }
 
         var scheduledAt = input.AppointmentDate.Date.Add(time.ToTimeSpan());
         if (await HasActiveDoctorConflictAsync(input.DoctorId, scheduledAt, appointment.Id))
         {
-            TempData["PortalError"] = "BÃ¡c sÄ© Ä‘Ã£ cÃ³ lá»‹ch trong khung giá» nÃ y. Vui lÃ²ng chá»n giá» khÃ¡c.";
+            TempData["PortalError"] = "Bác sĩ đã có lịch trong khung giờ này. Vui lòng chọn giờ khác.";
             return RedirectToAction(nameof(EditAppointment), new { id = input.Id });
         }
 
         appointment.DoctorId = input.DoctorId;
         appointment.AppointmentTime = scheduledAt;
         appointment.Reason = input.Symptoms.Trim();
-        appointment.Status = "ÄÃ£ Ä‘áº·t lá»‹ch";
+        appointment.Status = "Đã đặt lịch";
         await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "ÄÃ£ cáº­p nháº­t lá»‹ch khÃ¡m.";
+        TempData["PortalSuccess"] = "Đã cập nhật lịch khám.";
         return RedirectToAction(nameof(AppointmentDetail), new { id = appointment.Id });
     }
 
@@ -221,9 +221,9 @@ public class PatientPortalController(
     {
         var (_, patient) = await GetCurrentPortalAsync();
         var appointment = await db.Appointments.FirstOrDefaultAsync(x => x.Id == id && x.PatientId == patient.Id);
-        if (appointment is not null && appointment.Status != "HoÃ n táº¥t")
+        if (appointment is not null && appointment.Status != "Hoàn tất")
         {
-            appointment.Status = "ÄÃ£ há»§y";
+            appointment.Status = "Đã hủy";
             var invoice = await db.Invoices.FirstOrDefaultAsync(x => x.AppointmentId == appointment.Id);
             if (invoice is not null && invoice.PaymentStatus != "Paid")
             {
@@ -231,7 +231,7 @@ public class PatientPortalController(
                 invoice.UpdatedAt = DateTime.Now;
             }
             await db.SaveChangesAsync();
-            TempData["PortalSuccess"] = "ÄÃ£ há»§y lá»‹ch khÃ¡m.";
+            TempData["PortalSuccess"] = "Đã hủy lịch khám.";
         }
         return RedirectToAction(nameof(Appointments));
     }
@@ -242,7 +242,7 @@ public class PatientPortalController(
         var (_, patient) = await GetCurrentPortalAsync();
         if (!new[] { "BankQR", "Cash" }.Contains(method))
         {
-            TempData["PortalError"] = "PhÆ°Æ¡ng thá»©c thanh toÃ¡n khÃ´ng há»£p lá»‡.";
+            TempData["PortalError"] = "Phương thức thanh toán không hợp lệ.";
             return RedirectToAction(nameof(Payments));
         }
         var invoice = invoiceId.HasValue
@@ -251,19 +251,19 @@ public class PatientPortalController(
 
         if (invoice is null)
         {
-            TempData["PortalError"] = "KhÃ´ng tÃ¬m tháº¥y hÃ³a Ä‘Æ¡n cáº§n thanh toÃ¡n.";
+            TempData["PortalError"] = "Không tìm thấy hóa đơn cần thanh toán.";
             return RedirectToAction(nameof(Payments));
         }
 
         if (invoice.PaymentStatus == "Cancelled")
         {
-            TempData["PortalError"] = "HÃ³a Ä‘Æ¡n nÃ y Ä‘Ã£ bá»‹ há»§y.";
+            TempData["PortalError"] = "Hóa đơn này đã bị hủy.";
             return RedirectToAction(nameof(Payments), new { invoiceId = invoice.Id });
         }
 
         if (invoice.PaymentStatus == "Paid")
         {
-            TempData["PortalSuccess"] = "HÃ³a Ä‘Æ¡n nÃ y Ä‘Ã£ Ä‘Æ°á»£c thanh toÃ¡n.";
+            TempData["PortalSuccess"] = "Hóa đơn này đã được thanh toán.";
             return RedirectToAction(nameof(Payments), new { invoiceId = invoice.Id });
         }
 
@@ -273,7 +273,7 @@ public class PatientPortalController(
             invoice.UpdatedAt = DateTime.Now;
             await db.SaveChangesAsync();
 
-            TempData["PortalSuccess"] = "ÄÃ£ Ä‘Äƒng kÃ½ thanh toÃ¡n tiá»n máº·t. Vui lÃ²ng thanh toÃ¡n táº¡i quáº§y khi Ä‘áº¿n khÃ¡m.";
+            TempData["PortalSuccess"] = "Đã đăng ký thanh toán tiền mặt. Vui lòng thanh toán tại quầy khi đến khám.";
             return RedirectToAction(nameof(Payments), new { invoiceId = invoice.Id });
         }
 
@@ -289,7 +289,7 @@ public class PatientPortalController(
         invoice.UpdatedAt = DateTime.Now;
         await db.SaveChangesAsync();
 
-        TempData["PortalSuccess"] = "ÄÃ£ ghi nháº­n thanh toÃ¡n chuyá»ƒn khoáº£n QR.";
+        TempData["PortalSuccess"] = "Đã ghi nhận thanh toán chuyển khoản QR.";
         return RedirectToAction(nameof(Payments), new { invoiceId = invoice.Id });
     }
 
@@ -305,7 +305,7 @@ public class PatientPortalController(
             notification.UpdatedAt = DateTime.Now;
         }
         await db.SaveChangesAsync();
-        TempData["PortalSuccess"] = "ÄÃ£ Ä‘Ã¡nh dáº¥u táº¥t cáº£ thÃ´ng bÃ¡o lÃ  Ä‘Ã£ Ä‘á»c.";
+        TempData["PortalSuccess"] = "Đã đánh dấu tất cả thông báo là đã đọc.";
         return RedirectToAction(nameof(Notifications));
     }
 
@@ -318,7 +318,7 @@ public class PatientPortalController(
         var submittedMessage = message?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(submittedMessage))
         {
-            return Json(new { ok = false, reply = "Báº¡n hÃ£y nháº­p cÃ¢u há»i trÆ°á»›c khi gá»­i nhÃ©." });
+            return Json(new { ok = false, reply = "Bạn hãy nhập câu hỏi trước khi gửi nhé." });
         }
 
         var clinicalReasoning = clinicalKnowledgeService.Analyze(submittedMessage);
@@ -339,7 +339,7 @@ public class PatientPortalController(
             var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
             if (!allowed.Contains(extension) || image.Length > 5 * 1024 * 1024)
             {
-                TempData["PortalError"] = "áº¢nh pháº£i lÃ  JPG, PNG hoáº·c WEBP vÃ  khÃ´ng vÆ°á»£t quÃ¡ 5 MB.";
+                TempData["PortalError"] = "Ảnh phải là JPG, PNG hoặc WEBP và không vượt quá 5 MB.";
                 return RedirectToAction(nameof(Chat));
             }
 
@@ -398,18 +398,18 @@ public class PatientPortalController(
             .Where(x => x.PatientId == patient.Id && (!id.HasValue || x.Id == id))
             .OrderByDescending(x => x.VisitDate).ToListAsync();
         var content = new StringBuilder()
-            .AppendLine("PHÃ’NG KHÃM AN TÃ‚M")
-            .AppendLine("Há»’ SÆ  Káº¾T QUáº¢ KHÃM Bá»†NH")
-            .AppendLine($"Bá»‡nh nhÃ¢n: {patient.FullName}")
-            .AppendLine($"NgÃ y sinh: {patient.DateOfBirth:dd/MM/yyyy}")
+            .AppendLine("PHÒNG KHÁM AN TÂM")
+            .AppendLine("HỒ SƠ KẾT QUẢ KHÁM BỆNH")
+            .AppendLine($"Bệnh nhân: {patient.FullName}")
+            .AppendLine($"Ngày sinh: {patient.DateOfBirth:dd/MM/yyyy}")
             .AppendLine(new string('-', 50));
         foreach (var record in records)
         {
-            content.AppendLine($"NgÃ y khÃ¡m: {record.VisitDate:dd/MM/yyyy}")
-                .AppendLine($"BÃ¡c sÄ©: {record.Doctor?.FullName}")
-                .AppendLine($"Triá»‡u chá»©ng: {record.Symptoms}")
-                .AppendLine($"Cháº©n Ä‘oÃ¡n: {record.Diagnosis}")
-                .AppendLine($"Khuyáº¿n nghá»‹: {record.TreatmentPlan}")
+            content.AppendLine($"Ngày khám: {record.VisitDate:dd/MM/yyyy}")
+                .AppendLine($"Bác sĩ: {record.Doctor?.FullName}")
+                .AppendLine($"Triệu chứng: {record.Symptoms}")
+                .AppendLine($"Chẩn đoán: {record.Diagnosis}")
+                .AppendLine($"Khuyến nghị: {record.TreatmentPlan}")
                 .AppendLine(new string('-', 50));
         }
         return File(new UTF8Encoding(true).GetBytes(content.ToString()), "text/plain; charset=utf-8",
@@ -434,17 +434,17 @@ public class PatientPortalController(
                 page.DefaultTextStyle(x => x.FontSize(11));
                 page.Header().Column(column =>
                 {
-                    column.Item().Text("PHÃ’NG KHÃM AN TÃ‚M").Bold().FontSize(18).FontColor(Colors.Teal.Darken2);
-                    column.Item().Text($"ÄÆ N THUá»C DT-{prescription.Id:D5}").Bold().FontSize(15);
+                    column.Item().Text("PHÒNG KHÁM AN TÂM").Bold().FontSize(18).FontColor(Colors.Teal.Darken2);
+                    column.Item().Text($"ĐƠN THUỐC DT-{prescription.Id:D5}").Bold().FontSize(15);
                 });
                 page.Content().PaddingVertical(18).Column(column =>
                 {
                     column.Spacing(10);
-                    column.Item().Text($"Bá»‡nh nhÃ¢n: {patient.FullName}");
-                    column.Item().Text($"NgÃ y sinh: {patient.DateOfBirth:dd/MM/yyyy}    Giá»›i tÃ­nh: {patient.Gender}");
-                    column.Item().Text($"BÃ¡c sÄ©: {prescription.Doctor?.FullName}");
-                    column.Item().Text($"NgÃ y kÃª: {prescription.CreatedAt:dd/MM/yyyy HH:mm}");
-                    column.Item().Text($"Cháº©n Ä‘oÃ¡n: {prescription.Diagnosis}").Bold();
+                    column.Item().Text($"Bệnh nhân: {patient.FullName}");
+                    column.Item().Text($"Ngày sinh: {patient.DateOfBirth:dd/MM/yyyy}    Giới tính: {patient.Gender}");
+                    column.Item().Text($"Bác sĩ: {prescription.Doctor?.FullName}");
+                    column.Item().Text($"Ngày kê: {prescription.CreatedAt:dd/MM/yyyy HH:mm}");
+                    column.Item().Text($"Chẩn đoán: {prescription.Diagnosis}").Bold();
                     column.Item().PaddingTop(8).Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
@@ -456,7 +456,7 @@ public class PatientPortalController(
                         });
                         table.Header(header =>
                         {
-                            foreach (var title in new[] { "Thuá»‘c", "Liá»u dÃ¹ng", "Sá»‘ láº§n dÃ¹ng", "Thá»i gian" })
+                            foreach (var title in new[] { "Thuốc", "Liều dùng", "Số lần dùng", "Thời gian" })
                                 header.Cell().Background(Colors.Teal.Lighten4).Padding(6).Text(title).Bold();
                         });
                         foreach (var detail in details)
@@ -467,11 +467,11 @@ public class PatientPortalController(
                             table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(6).Text(detail.UsageInstruction);
                         }
                     });
-                    column.Item().PaddingTop(10).Text($"Ghi chÃº: {prescription.Instructions}");
+                    column.Item().PaddingTop(10).Text($"Ghi chú: {prescription.Instructions}");
                 });
                 page.Footer().AlignCenter().Text(text =>
                 {
-                    text.Span("An TÃ¢m Clinic Â· ");
+                    text.Span("An Tâm Clinic · ");
                     text.CurrentPageNumber();
                 });
             });
@@ -582,24 +582,24 @@ public class PatientPortalController(
         return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
             && (!excludeId.HasValue || x.Id != excludeId.Value)
             && x.Status != "Da huy" && x.Status != "Huy"
-            && x.Status != "ÄÃ£ há»§y" && x.Status != "Há»§y"
+            && x.Status != "Đã hủy" && x.Status != "Hủy"
             && x.AppointmentTime >= start && x.AppointmentTime <= end);
     }
 
     private static bool CanEditPatientAppointment(Appointment appointment)
         => appointment.Status != "Hoan tat" && appointment.Status != "Da huy" && appointment.Status != "Huy"
-            && appointment.Status != "HoÃ n táº¥t" && appointment.Status != "ÄÃ£ há»§y" && appointment.Status != "Há»§y"
+            && appointment.Status != "Hoàn tất" && appointment.Status != "Đã hủy" && appointment.Status != "Hủy"
             && appointment.AppointmentTime > DateTime.Now.AddHours(4);
 
     private static List<AiChatMessage> BuildAiMessages(string patientName, string patientMessage, ClinicalReasoningResult clinicalReasoning) =>
     [
         new("system",
-            "Bạn là trợ lý AI của Phòng Khám An Tâm. Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu và thân thiện. " +
-            "Bạn hỗ trợ thông tin sức khỏe phổ thông, hướng dẫn đặt lịch, thanh toán, chuẩn bị đi khám và giải thích thuật ngữ y tế ở mức tham khảo. " +
-            "Không khẳng định chẩn đoán, không kê đơn thuốc, không thay thế bác sĩ. Nếu có dấu hiệu nguy hiểm, hãy khuyên người bệnh đi cấp cứu hoặc liên hệ bác sĩ ngay. " +
-            "Bên dưới là kết quả suy luận từ Knowledge Graph nội bộ; hãy dùng như ngữ cảnh có giải thích, không gọi đó là chẩn đoán:\n" +
+            "B?n l� tr? l� AI c?a Ph�ng Kh�m An T�m. Tr? l?i b?ng ti?ng Vi?t, ng?n g?n, d? hi?u v� th�n thi?n. " +
+            "B?n h? tr? th�ng tin s?c kh?e ph? th�ng, hu?ng d?n d?t l?ch, thanh to�n, chu?n b? di kh�m v� gi?i th�ch thu?t ng? y t? ? m?c tham kh?o. " +
+            "Kh�ng kh?ng d?nh ch?n do�n, kh�ng k� don thu?c, kh�ng thay th? b�c si. N?u c� d?u hi?u nguy hi?m, h�y khuy�n ngu?i b?nh di c?p c?u ho?c li�n h? b�c si ngay. " +
+            "B�n du?i l� k?t qu? suy lu?n t? Knowledge Graph n?i b?; h�y d�ng nhu ng? c?nh c� gi?i th�ch, kh�ng g?i d� l� ch?n do�n:\n" +
             clinicalReasoning.ToPromptContext() + "\n" +
-            $"Tên bệnh nhân: {patientName}."),
+            $"T�n b?nh nh�n: {patientName}."),
         new("user", patientMessage)
     ];
 
@@ -608,11 +608,11 @@ public class PatientPortalController(
         var messages = new List<AiChatMessage>
         {
             new("system",
-                "Báº¡n lÃ  trá»£ lÃ½ AI cá»§a PhÃ²ng KhÃ¡m An TÃ¢m. Tráº£ lá»i báº±ng tiáº¿ng Viá»‡t, ngáº¯n gá»n, dá»… hiá»ƒu vÃ  thÃ¢n thiá»‡n. " +
-                "Báº¡n há»— trá»£ thÃ´ng tin sá»©c khá»e phá»• thÃ´ng, hÆ°á»›ng dáº«n Ä‘áº·t lá»‹ch, thanh toÃ¡n, chuáº©n bá»‹ Ä‘i khÃ¡m vÃ  giáº£i thÃ­ch thuáº­t ngá»¯ y táº¿ á»Ÿ má»©c tham kháº£o. " +
-                "KhÃ´ng kháº³ng Ä‘á»‹nh cháº©n Ä‘oÃ¡n, khÃ´ng kÃª Ä‘Æ¡n thuá»‘c, khÃ´ng thay tháº¿ bÃ¡c sÄ©. " +
-                "Náº¿u ngÆ°á»i bá»‡nh cÃ³ dáº¥u hiá»‡u nguy hiá»ƒm nhÆ° Ä‘au ngá»±c, khÃ³ thá»Ÿ, yáº¿u liá»‡t, co giáº­t, cháº£y mÃ¡u nhiá»u, sá»‘t cao kÃ©o dÃ i hoáº·c triá»‡u chá»©ng náº·ng nhanh, hÃ£y khuyÃªn Ä‘i cáº¥p cá»©u hoáº·c liÃªn há»‡ bÃ¡c sÄ© ngay. " +
-                $"TÃªn bá»‡nh nhÃ¢n: {patientName}.")
+                "Bạn là trợ lý AI của Phòng Khám An Tâm. Trả lời bằng tiếng Việt, ngắn gọn, dễ hiểu và thân thiện. " +
+                "Bạn hỗ trợ thông tin sức khỏe phổ thông, hướng dẫn đặt lịch, thanh toán, chuẩn bị đi khám và giải thích thuật ngữ y tế ở mức tham khảo. " +
+                "Không khẳng định chẩn đoán, không kê đơn thuốc, không thay thế bác sĩ. " +
+                "Nếu người bệnh có dấu hiệu nguy hiểm như đau ngực, khó thở, yếu liệt, co giật, chảy máu nhiều, sốt cao kéo dài hoặc triệu chứng nặng nhanh, hãy khuyên đi cấp cứu hoặc liên hệ bác sĩ ngay. " +
+                $"Tên bệnh nhân: {patientName}.")
         };
 
         foreach (var chat in chatMessages)
@@ -656,7 +656,7 @@ public class PatientPortalController(
 
     private async Task<(ApplicationUser User, Patient Patient)> GetCurrentAsync()
     {
-        var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("KhÃ´ng tÃ¬m tháº¥y tÃ i khoáº£n.");
+        var user = await userManager.GetUserAsync(User) ?? throw new InvalidOperationException("Không tìm thấy tài khoản.");
         var patient = !string.IsNullOrWhiteSpace(user.PhoneNumber)
             ? await db.Patients.FirstOrDefaultAsync(x => x.Phone == user.PhoneNumber)
             : null;
@@ -681,13 +681,13 @@ public class PatientPortalController(
         var end = appointmentTime.AddMinutes(29);
         return await db.Appointments.AnyAsync(x => x.DoctorId == doctorId
             && (!excludeId.HasValue || x.Id != excludeId.Value)
-            && x.Status != "ÄÃ£ há»§y" && x.Status != "Há»§y"
+            && x.Status != "Đã hủy" && x.Status != "Hủy"
             && x.AppointmentTime >= start && x.AppointmentTime <= end);
     }
 
     private static bool CanEditAppointment(Appointment appointment) =>
-        appointment.Status != "HoÃ n táº¥t" && appointment.Status != "ÄÃ£ há»§y"
-        && appointment.Status != "Há»§y" && appointment.AppointmentTime > DateTime.Now.AddHours(4);
+        appointment.Status != "Hoàn tất" && appointment.Status != "Đã hủy"
+        && appointment.Status != "Hủy" && appointment.AppointmentTime > DateTime.Now.AddHours(4);
 
     private async Task EnsureDefaultNotificationsAsync(ApplicationUser user)
     {
@@ -697,10 +697,10 @@ public class PatientPortalController(
         }
 
         db.Notifications.AddRange(
-            new Notification { UserId = user.Id, Title = "Nháº¯c lá»‹ch khÃ¡m sáº¯p tá»›i", Message = "Báº¡n cÃ³ lá»‹ch khÃ¡m sáº¯p tá»›i. Vui lÃ²ng Ä‘áº¿n trÆ°á»›c 15 phÃºt.", CreatedAt = DateTime.Now.AddMinutes(-10) },
-            new Notification { UserId = user.Id, Title = "Káº¿t quáº£ khÃ¡m Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t", Message = "Káº¿t quáº£ khÃ¡m vÃ  khuyáº¿n nghá»‹ Ä‘iá»u trá»‹ má»›i Ä‘Ã£ sáºµn sÃ ng.", CreatedAt = DateTime.Now.AddHours(-2) },
-            new Notification { UserId = user.Id, Title = "ThÃ´ng bÃ¡o thanh toÃ¡n", Message = "HÃ³a Ä‘Æ¡n khÃ¡m bá»‡nh cá»§a báº¡n Ä‘ang chá» thanh toÃ¡n.", CreatedAt = DateTime.Now.AddDays(-1), IsRead = true },
-            new Notification { UserId = user.Id, Title = "ThÃ´ng bÃ¡o tá»« phÃ²ng khÃ¡m", Message = "An TÃ¢m má»Ÿ thÃªm khung giá» khÃ¡m sÃ¡ng thá»© Báº£y vÃ  Chá»§ nháº­t.", CreatedAt = DateTime.Now.AddDays(-3), IsRead = true });
+            new Notification { UserId = user.Id, Title = "Nhắc lịch khám sắp tới", Message = "Bạn có lịch khám sắp tới. Vui lòng đến trước 15 phút.", CreatedAt = DateTime.Now.AddMinutes(-10) },
+            new Notification { UserId = user.Id, Title = "Kết quả khám đã được cập nhật", Message = "Kết quả khám và khuyến nghị điều trị mới đã sẵn sàng.", CreatedAt = DateTime.Now.AddHours(-2) },
+            new Notification { UserId = user.Id, Title = "Thông báo thanh toán", Message = "Hóa đơn khám bệnh của bạn đang chờ thanh toán.", CreatedAt = DateTime.Now.AddDays(-1), IsRead = true },
+            new Notification { UserId = user.Id, Title = "Thông báo từ phòng khám", Message = "An Tâm mở thêm khung giờ khám sáng thứ Bảy và Chủ nhật.", CreatedAt = DateTime.Now.AddDays(-3), IsRead = true });
         await db.SaveChangesAsync();
     }
 }
