@@ -2215,6 +2215,75 @@ a { text-decoration: none; }
   flex-direction: column;
   gap: 24px;
 }
+.booking-suggestions {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(11, 142, 132, 0.08), rgba(255, 255, 255, 0.88));
+}
+.suggestion-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.suggestion-heading h2 {
+  margin: 4px 0 2px;
+  font-size: 1.05rem;
+  font-weight: 850;
+}
+.suggestion-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+.suggestion-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+.schedule-suggestion-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  text-align: left;
+  border: 1px solid rgba(11, 142, 132, 0.22);
+  border-radius: 14px;
+  background: #fff;
+  padding: 14px;
+  color: var(--ink);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.schedule-suggestion-card:hover,
+.schedule-suggestion-card.active {
+  border-color: var(--teal);
+  box-shadow: 0 14px 30px rgba(9, 122, 115, 0.16);
+  transform: translateY(-1px);
+}
+.suggestion-score {
+  grid-row: span 3;
+  min-width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2f5f2;
+  color: var(--teal);
+  font-weight: 850;
+}
+.schedule-suggestion-card strong {
+  font-weight: 850;
+}
+.schedule-suggestion-card small {
+  color: var(--muted);
+}
+.schedule-suggestion-card em {
+  color: var(--teal);
+  font-style: normal;
+  font-weight: 750;
+  font-size: 0.9rem;
+}
 .form-step {
   display: flex;
   align-items: center;

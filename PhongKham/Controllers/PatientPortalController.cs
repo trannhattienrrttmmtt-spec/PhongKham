@@ -19,7 +19,8 @@ public class PatientPortalController(
     UserManager<ApplicationUser> userManager,
     SignInManager<ApplicationUser> signInManager,
     IAiChatService aiChatService,
-    IClinicalKnowledgeService clinicalKnowledgeService) : Controller
+    IClinicalKnowledgeService clinicalKnowledgeService,
+    IAlgorithmService algorithmService) : Controller
 {
     public Task<IActionResult> Home() => Portal("Home");
     public Task<IActionResult> Profile() => Portal("Profile");
@@ -507,6 +508,18 @@ public class PatientPortalController(
                 .Include(x => x.Doctor)
                 .Where(x => x.PatientId == patient.Id)
                 .OrderByDescending(x => x.AppointmentTime).ToListAsync();
+        }
+        if (page == "Book")
+        {
+            var appointments = await db.Appointments.AsNoTracking()
+                .Include(x => x.Doctor)
+                .ToListAsync();
+            model.ScheduleSuggestions = algorithmService.BuildScheduleSuggestions(
+                appointments,
+                model.Doctors,
+                DateTime.Today.AddDays(1),
+                days: 5,
+                take: 6);
         }
         if (needsRecords)
         {

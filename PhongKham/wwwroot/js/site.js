@@ -36,6 +36,38 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     specialty.addEventListener("change", filterDoctors);
     filterDoctors();
+
+    document.querySelectorAll("[data-suggest-doctor]").forEach(button => {
+      button.addEventListener("click", () => {
+        const matchedSpecialty = [...specialty.options].find(option =>
+          normalizeSpecialty(option.value) === normalizeSpecialty(button.dataset.suggestSpecialty));
+        if (matchedSpecialty) {
+          specialty.value = matchedSpecialty.value;
+          filterDoctors();
+        }
+
+        if (button.dataset.suggestDoctor) {
+          doctors.value = button.dataset.suggestDoctor;
+          doctors.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
+        const dateInput = document.querySelector("#appointmentDateInput");
+        const timeSelect = document.querySelector("#appointmentTimeSelect");
+        if (dateInput && button.dataset.suggestDate) {
+          dateInput.value = button.dataset.suggestDate;
+        }
+        if (timeSelect && button.dataset.suggestTime) {
+          const matchedTime = [...timeSelect.options].find(option =>
+            option.value === button.dataset.suggestTime || option.textContent.trim() === button.dataset.suggestTime);
+          if (matchedTime) {
+            timeSelect.value = matchedTime.value;
+          }
+        }
+
+        document.querySelectorAll("[data-suggest-doctor]").forEach(item => item.classList.remove("active"));
+        button.classList.add("active");
+      });
+    });
   }
 
   const appointmentFilter = document.querySelector("[data-appointment-filter]");

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using PhongKham.Models;
+using PhongKham.Services;
 
 namespace PhongKham.ViewModels;
 
@@ -20,6 +21,7 @@ public class PatientPortalViewModel
     public Invoice? SelectedInvoice { get; set; }
     public List<Notification> Notifications { get; set; } = [];
     public List<AuditLog> ChatMessages { get; set; } = [];
+    public List<ScheduleSuggestion> ScheduleSuggestions { get; set; } = [];
     public int PatientCount { get; set; }
     public int AppointmentCount { get; set; }
     public int? SelectedDoctorId { get; set; }
