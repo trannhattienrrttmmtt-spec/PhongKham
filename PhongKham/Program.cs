@@ -50,6 +50,8 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 });
 builder.Services.AddScoped(typeof(IRepository<>), typeof(EfRepository<>));
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAlgorithmService, AlgorithmService>();
+builder.Services.AddScoped<IClinicalKnowledgeService, ClinicalKnowledgeService>();
 builder.Services.AddHttpClient<IAiChatService, OpenRouterAiChatService>(client =>
 {
     client.BaseAddress = new Uri("https://openrouter.ai/api/v1/");

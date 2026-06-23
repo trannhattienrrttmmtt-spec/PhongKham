@@ -8,14 +8,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const specialty = document.querySelector("#specialtySelect");
   const doctors = document.querySelector("#doctorSelect");
   if (specialty && doctors) {
+    const normalizeSpecialty = value => (value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\u0111/g, "d")
+      .replace(/\u0110/g, "D")
+      .trim()
+      .toLocaleLowerCase("vi");
+
     const filterDoctors = () => {
-      const selected = specialty.value;
-      [...doctors.options].forEach(option => {
-        option.hidden = Boolean(selected) && option.dataset.specialty !== selected;
+      const selected = normalizeSpecialty(specialty.value);
+      const options = [...doctors.options];
+
+      options.forEach(option => {
+        const matches = !selected || normalizeSpecialty(option.dataset.specialty) === selected;
+        option.hidden = !matches;
+        option.disabled = !matches;
       });
-      if (doctors.selectedOptions[0]?.hidden) {
-        const firstVisible = [...doctors.options].find(option => !option.hidden);
-        if (firstVisible) doctors.value = firstVisible.value;
+
+      const selectedDoctor = doctors.selectedOptions[0];
+      if (!selectedDoctor || selectedDoctor.disabled) {
+        const firstVisible = options.find(option => !option.disabled);
+        if (firstVisible) {
+          doctors.value = firstVisible.value;
+        }
       }
     };
     specialty.addEventListener("change", filterDoctors);
@@ -190,7 +206,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const formData = new FormData(form);
       formData.set("message", text);
       input.value = "";
-      const pending = appendMessage("Đang trả lời...", "incoming", "AI");
+      const pending = appendMessage("\u0110ang ph\u00e2n t\u00edch Knowledge Graph v\u00e0 t\u1ea1o ph\u1ea3n h\u1ed3i...", "incoming", "AI");
 
       try {
         const response = await fetch(form.action, {

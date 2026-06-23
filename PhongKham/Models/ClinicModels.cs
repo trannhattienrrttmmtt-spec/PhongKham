@@ -148,4 +148,6 @@ public class ClinicDashboardViewModel
     public int PrescriptionsCount { get; set; }
     public decimal RevenueThisMonth { get; set; }
     public List<Appointment> UpcomingAppointments { get; set; } = [];
+    public List<global::PhongKham.Services.ScheduleSuggestion> ScheduleSuggestions { get; set; } = [];
+    public List<global::PhongKham.Services.PatientCluster> PatientClusters { get; set; } = [];
 }

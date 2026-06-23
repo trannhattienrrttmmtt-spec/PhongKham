@@ -85,6 +85,13 @@
             {
                 medicalRecordMap.TryGetValue(item.Id, out var medicalRecordId);
                 prescriptionMap.TryGetValue(item.Id, out var prescriptionId);
+                var normalizedStatus = (item.Status ?? "").Trim().ToLowerInvariant();
+                var nextDoctorStatuses = normalizedStatus.Contains("hoàn tất") || normalizedStatus.Contains("hoan tat")
+                    || normalizedStatus.Contains("hủy") || normalizedStatus.Contains("huy")
+                        ? Array.Empty<string>()
+                        : normalizedStatus.Contains("đang khám") || normalizedStatus.Contains("dang kham")
+                            ? new[] { "Hoàn tất" }
+                            : new[] { "Đang khám" };
                 <tr>
                     <td>@item.AppointmentTime.ToString("dd/MM/yyyy HH:mm")</td>
                     <td>
@@ -101,7 +108,7 @@
                         {
                             <div class="d-flex flex-column gap-2">
                                 <div class="d-flex flex-wrap gap-2">
-                                    @foreach (var status in statusOptions)
+                                    @foreach (var status in nextDoctorStatuses)
                                     {
                                         if (!string.Equals(item.Status, status, StringComparison.OrdinalIgnoreCase))
                                         {

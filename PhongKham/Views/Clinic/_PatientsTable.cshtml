@@ -1,4 +1,7 @@
 @model List<Patient>
+@{
+    var patientDoctorMap = ViewBag.PatientDoctorMap as Dictionary<int, string> ?? new Dictionary<int, string>();
+}
 <div class="panel">
     <div class="panel-head">
         <h2>Danh sách bệnh nhân</h2>
@@ -6,11 +9,12 @@
     </div>
     <div class="table-responsive">
         <table class="table align-middle">
-            <thead><tr><th>Họ tên</th><th>Giới tính</th><th>Ngày sinh</th><th>Điện thoại</th><th>BHYT</th><th>Địa chỉ</th></tr></thead>
+            <thead><tr><th>Họ tên</th><th>Bác sĩ phụ trách</th><th>Giới tính</th><th>Ngày sinh</th><th>Điện thoại</th><th>BHYT</th><th>Địa chỉ</th></tr></thead>
             <tbody>
             @foreach (var item in Model)
             {
-                <tr><td>@item.FullName</td><td>@item.Gender</td><td>@item.DateOfBirth.ToString("dd/MM/yyyy")</td><td>@item.Phone</td><td>@item.InsuranceCode</td><td>@item.Address</td></tr>
+                patientDoctorMap.TryGetValue(item.Id, out var doctorName);
+                <tr><td>@item.FullName</td><td><span class="badge badge-soft">@(string.IsNullOrWhiteSpace(doctorName) ? "Chưa có lịch" : doctorName)</span></td><td>@item.Gender</td><td>@item.DateOfBirth.ToString("dd/MM/yyyy")</td><td>@item.Phone</td><td>@item.InsuranceCode</td><td>@item.Address</td></tr>
             }
             </tbody>
         </table>

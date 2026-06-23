@@ -17,8 +17,8 @@
     };
     ViewData["Title"] = title;
     var upcoming = Model.Appointments.Where(x => x.AppointmentTime >= DateTime.Today && x.Status != "Đã hủy").OrderBy(x => x.AppointmentTime).ToList();
-    var featuredSpecialties = Model.Specialties.Any()
-        ? Model.Specialties.Take(4).ToList()
+    var allSpecialties = Model.Specialties.Any()
+        ? Model.Specialties.ToList()
         : new List<Specialty>
         {
             new() { Name = "Nội tổng quát", Description = "Khám và điều trị các bệnh lý thường gặp." },
@@ -26,6 +26,7 @@
             new() { Name = "Nhi khoa", Description = "Chăm sóc sức khỏe toàn diện cho trẻ." },
             new() { Name = "Tai Mũi Họng", Description = "Chẩn đoán và điều trị chuyên sâu." }
         };
+    var featuredSpecialties = allSpecialties.Take(6).ToList();
 }
 
 @if (TempData["PortalSuccess"] is string success)
@@ -149,7 +150,7 @@ else if (Model.Page == "Book")
         <div class="portal-card booking-form">
             <div class="form-step"><span>1</span><div><h2>Chọn chuyên khoa và bác sĩ</h2><p>Danh sách bác sĩ đang có lịch tại phòng khám.</p></div></div>
             <div class="field-grid">
-                <label><span>Chuyên khoa</span><select class="form-select" id="specialtySelect"><option value="">Tất cả chuyên khoa</option>@foreach(var specialty in featuredSpecialties){<option value="@specialty.Name" selected="@(Model.SelectedSpecialty == specialty.Name)">@specialty.Name</option>}</select></label>
+                <label><span>Chuyên khoa</span><select class="form-select" id="specialtySelect"><option value="">Tất cả chuyên khoa</option>@foreach(var specialty in allSpecialties){<option value="@specialty.Name" selected="@(Model.SelectedSpecialty == specialty.Name)">@specialty.Name</option>}</select></label>
                 <label><span>Bác sĩ</span><select name="doctorId" id="doctorSelect" class="form-select" required>@foreach(var doctor in Model.Doctors){<option value="@doctor.Id" data-specialty="@doctor.Specialty" selected="@(Model.SelectedDoctorId == doctor.Id)">@doctor.FullName — @doctor.Specialty</option>}</select></label>
             </div>
             <div class="form-step"><span>2</span><div><h2>Chọn ngày và giờ khám</h2><p>Vui lòng đến trước giờ hẹn khoảng 15 phút.</p></div></div>

@@ -947,6 +947,107 @@ a { text-decoration: none; }
   transform: translateX(2px);
 }
 
+.algorithm-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 24px;
+}
+
+.algorithm-panel {
+  overflow: hidden;
+}
+
+.algorithm-list {
+  display: grid;
+  gap: 12px;
+}
+
+.algorithm-row,
+.cluster-row {
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+}
+
+.algorithm-row strong,
+.algorithm-row small,
+.cluster-row strong,
+.cluster-row small {
+  display: block;
+}
+
+.algorithm-row small,
+.cluster-row small {
+  color: var(--muted);
+  font-size: .82rem;
+  margin-top: 2px;
+}
+
+.algorithm-score,
+.cluster-row > span {
+  align-items: center;
+  background: var(--primary-light);
+  border-radius: 10px;
+  color: var(--teal);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 900;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.forecast-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.forecast-card {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.forecast-card.is-critical {
+  border-left-color: var(--rose);
+}
+
+.forecast-card.is-low {
+  border-left-color: var(--amber);
+}
+
+.forecast-card strong,
+.forecast-card span,
+.forecast-card small {
+  display: block;
+}
+
+.forecast-card span {
+  color: var(--ink);
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.forecast-card small {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.algorithm-note {
+  color: var(--muted);
+  display: block;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
 /* Premium Tables */
 .table-responsive {
   border-radius: 12px;
@@ -1240,7 +1341,8 @@ a { text-decoration: none; }
 
 @media (max-width: 1100px) {
   .hero-section,
-  .dashboard-grid {
+  .dashboard-grid,
+  .algorithm-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -1421,6 +1523,7 @@ a { text-decoration: none; }
 .auth-input-group {
   position: relative;
   margin-bottom: 20px;
+  min-width: 0;
 }
 
 .auth-input-group i {
@@ -1433,13 +1536,36 @@ a { text-decoration: none; }
   transition: var(--transition);
 }
 
-.auth-input-group .form-control {
+.auth-input-group .form-control,
+.auth-input-group .form-select {
   padding-left: 48px;
+  min-width: 0;
   width: 100%;
 }
 
-.auth-input-group .form-control:focus + i {
+.auth-input-group .form-control:focus + i,
+.auth-input-group .form-select:focus + i {
   color: var(--primary);
+}
+
+.auth-register-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.auth-register-form .span-2,
+.auth-register-form .wide {
+  grid-column: 1 / -1 !important;
+}
+
+.auth-register-form .auth-input-group {
+  margin-bottom: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .auth-register-form {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Clickable developer account chips */

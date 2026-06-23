@@ -9,6 +9,59 @@ namespace PhongKham.Data;
 public static class ClinicSeeder
 {
     private const int MinimumSeedMedicineStock = 101;
+    private static readonly DoctorSeedInfo[] DoctorSeeds =
+    [
+        new("BS. Pham Quoc Huy", "Noi tong quat", "02838111111", "bacsi@phongkham.local"),
+        new("BS. Vo Thanh Tam", "Nhi khoa", "02838222222", "bacsi2@phongkham.local"),
+        new("BS. Dang Hoai Linh", "Tim mach", "02838333333", "bacsi3@phongkham.local"),
+        new("BS. Nguyen Minh Duc", "Tai Mui Hong", "02838444444", "bacsi4@phongkham.local"),
+        new("BS. Le Hoang Anh", "Da lieu", "02838555555", "bacsi5@phongkham.local"),
+        new("BS. Tran Thu Ha", "Co xuong khop", "02838666666", "bacsi6@phongkham.local"),
+        new("BS. Hoang Gia Bao", "Tieu hoa", "02838777777", "bacsi7@phongkham.local"),
+        new("BS. Phan Ngoc Mai", "San phu khoa", "02838888888", "bacsi8@phongkham.local"),
+        new("BS. Bui Khanh Linh", "Mat", "02838999999", "bacsi9@phongkham.local"),
+        new("BS. Doan Quang Vinh", "Than kinh", "02838000010", "bacsi10@phongkham.local"),
+        new("BS. Mai Anh Tuan", "Noi tiet", "02838000011", "bacsi11@phongkham.local"),
+        new("BS. Truong Minh Khang", "Tiet nieu", "02838000012", "bacsi12@phongkham.local"),
+        new("BS. Dinh Bao Chau", "Ho hap", "02838000013", "bacsi13@phongkham.local"),
+        new("BS. Nguyen Thao Vy", "Dinh duong", "02838000014", "bacsi14@phongkham.local"),
+        new("BS. Cao Thanh Son", "Cap cuu", "02838000015", "bacsi15@phongkham.local"),
+        new("BS. Nguyen Hoang Nam", "Noi tong quat", "02838000016", "bacsi16@phongkham.local"),
+        new("BS. Tran Minh Ngoc", "Noi tong quat", "02838000017", "bacsi17@phongkham.local"),
+        new("BS. Pham Tue Minh", "Nhi khoa", "02838000018", "bacsi18@phongkham.local"),
+        new("BS. Le Quynh Nhu", "Nhi khoa", "02838000019", "bacsi19@phongkham.local"),
+        new("BS. Vu Duc Anh", "Tim mach", "02838000020", "bacsi20@phongkham.local"),
+        new("BS. Ho Thi Khanh", "Tim mach", "02838000021", "bacsi21@phongkham.local"),
+        new("BS. Ngo Bao Long", "Tai Mui Hong", "02838000022", "bacsi22@phongkham.local"),
+        new("BS. Phung My Duyen", "Tai Mui Hong", "02838000023", "bacsi23@phongkham.local"),
+        new("BS. Ly Gia Han", "Da lieu", "02838000024", "bacsi24@phongkham.local"),
+        new("BS. Kieu Manh Hung", "Co xuong khop", "02838000025", "bacsi25@phongkham.local"),
+        new("BS. Dang Nhat Minh", "Noi tong quat", "02838000026", "bacsi26@phongkham.local"),
+        new("BS. Ha Phuong Linh", "Noi tong quat", "02838000027", "bacsi27@phongkham.local"),
+        new("BS. Nguyen Bao Tran", "Nhi khoa", "02838000028", "bacsi28@phongkham.local"),
+        new("BS. Cao Minh Quan", "Nhi khoa", "02838000029", "bacsi29@phongkham.local"),
+        new("BS. Truong Anh Khoa", "Tim mach", "02838000030", "bacsi30@phongkham.local"),
+        new("BS. Le Thanh Truc", "Tim mach", "02838000031", "bacsi31@phongkham.local"),
+        new("BS. Nguyen Duc Tri", "Tai Mui Hong", "02838000032", "bacsi32@phongkham.local"),
+        new("BS. Vo Minh Chau", "Tai Mui Hong", "02838000033", "bacsi33@phongkham.local"),
+        new("BS. Pham Ha My", "Da lieu", "02838000034", "bacsi34@phongkham.local"),
+        new("BS. Tran Quoc Bao", "Da lieu", "02838000035", "bacsi35@phongkham.local"),
+        new("BS. Nguyen Tuan Kiet", "Co xuong khop", "02838000036", "bacsi36@phongkham.local"),
+        new("BS. Do Thi Thanh", "Co xuong khop", "02838000037", "bacsi37@phongkham.local"),
+        new("BS. Bui Minh Phuc", "Tieu hoa", "02838000038", "bacsi38@phongkham.local"),
+        new("BS. Tran Kim Ngan", "Tieu hoa", "02838000039", "bacsi39@phongkham.local"),
+        new("BS. Le Bao Ngoc", "San phu khoa", "02838000040", "bacsi40@phongkham.local"),
+        new("BS. Nguyen Thuy Dung", "San phu khoa", "02838000041", "bacsi41@phongkham.local"),
+        new("BS. Pham Van Hieu", "Mat", "02838000042", "bacsi42@phongkham.local"),
+        new("BS. Doan My Linh", "Mat", "02838000043", "bacsi43@phongkham.local"),
+        new("BS. Huynh Gia Phat", "Than kinh", "02838000044", "bacsi44@phongkham.local"),
+        new("BS. Tran Ngoc Huyen", "Than kinh", "02838000045", "bacsi45@phongkham.local"),
+        new("BS. Le Quang Huy", "Noi tiet", "02838000046", "bacsi46@phongkham.local"),
+        new("BS. Nguyen Phuong Anh", "Noi tiet", "02838000047", "bacsi47@phongkham.local"),
+        new("BS. Pham Trung Hieu", "Ho hap", "02838000048", "bacsi48@phongkham.local"),
+        new("BS. Vu Thi Mai", "Ho hap", "02838000049", "bacsi49@phongkham.local"),
+        new("BS. Tran Gia Huy", "Cap cuu", "02838000050", "bacsi50@phongkham.local")
+    ];
 
     public static async Task SeedAsync(
         ClinicDbContext db,
@@ -72,31 +125,16 @@ public static class ClinicSeeder
             }
         };
 
-        var doctors = new[]
-        {
-            new Doctor
+        var doctors = DoctorSeeds
+            .Select(x => new Doctor
             {
-                FullName = "BS. Pham Quoc Huy",
-                Specialty = "Noi tong quat",
-                Phone = "02838111111",
-                AccountEmail = "bacsi@phongkham.local",
+                FullName = x.FullName,
+                Specialty = x.Specialty,
+                Phone = x.Phone,
+                AccountEmail = x.Email,
                 Status = "Dang lam viec"
-            },
-            new Doctor
-            {
-                FullName = "BS. Vo Thanh Tam",
-                Specialty = "Nhi khoa",
-                Phone = "02838222222",
-                Status = "Dang lam viec"
-            },
-            new Doctor
-            {
-                FullName = "BS. Dang Hoai Linh",
-                Specialty = "Tim mach",
-                Phone = "02838333333",
-                Status = "Dang lam viec"
-            }
-        };
+            })
+            .ToArray();
 
         var medicines = new[]
         {
@@ -275,7 +313,10 @@ public static class ClinicSeeder
         }
 
         await EnsureUserAsync(userManager, "admin@phongkham.local", "Quan tri he thong", "Admin", "Admin");
-        await EnsureUserAsync(userManager, "bacsi@phongkham.local", "Bac si phong kham", "BacSi", "BacSi");
+        foreach (var doctor in DoctorSeeds)
+        {
+            await EnsureUserAsync(userManager, doctor.Email, doctor.FullName, "BacSi", "BacSi", doctor.Phone);
+        }
         await EnsureUserAsync(userManager, "duocsi@phongkham.local", "Duoc si", "DuocSi", "DuocSi");
         await EnsureUserAsync(userManager, "benhnhan@phongkham.local", "Nguyen Van An", "BenhNhan", "BenhNhan", "0901234567");
     }
@@ -372,6 +413,38 @@ public static class ClinicSeeder
         {
             doctor.AccountEmail = "bacsi@phongkham.local";
             changed = true;
+        }
+
+        foreach (var seed in DoctorSeeds)
+        {
+            var existingDoctor = await db.Doctors.FirstOrDefaultAsync(x =>
+                x.AccountEmail == seed.Email || x.FullName == seed.FullName || x.Phone == seed.Phone);
+
+            if (existingDoctor is null)
+            {
+                db.Doctors.Add(new Doctor
+                {
+                    FullName = seed.FullName,
+                    Specialty = seed.Specialty,
+                    Phone = seed.Phone,
+                    AccountEmail = seed.Email,
+                    Status = "Dang lam viec"
+                });
+                changed = true;
+                continue;
+            }
+
+            if (existingDoctor.FullName != seed.FullName
+                || existingDoctor.Specialty != seed.Specialty
+                || existingDoctor.Phone != seed.Phone
+                || existingDoctor.AccountEmail != seed.Email)
+            {
+                existingDoctor.FullName = seed.FullName;
+                existingDoctor.Specialty = seed.Specialty;
+                existingDoctor.Phone = seed.Phone;
+                existingDoctor.AccountEmail = seed.Email;
+                changed = true;
+            }
         }
 
         var patientWithAllergy = await db.Patients.OrderBy(x => x.Id).Skip(1).FirstOrDefaultAsync();
@@ -803,5 +876,6 @@ public static class ClinicSeeder
         return candidates.FirstOrDefault(File.Exists);
     }
 
+    private sealed record DoctorSeedInfo(string FullName, string Specialty, string Phone, string Email);
     private sealed record DrugSeedRow(string Code, string Name, string Smiles);
 }

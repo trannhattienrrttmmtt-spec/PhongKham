@@ -10,6 +10,7 @@
     var expired = Model.Count(x => x.ExpiryDate.Date < DateTime.Today);
     var inactive = Model.Count(x => !x.IsActive);
     var inventoryValue = Model.Where(x => x.IsActive).Sum(x => x.QuantityInStock * x.UnitPrice);
+    var forecasts = ViewBag.InventoryForecasts as List<PhongKham.Services.InventoryForecast> ?? [];
     var urgentMedicines = Model
         .Where(x => x.IsActive && (x.QuantityInStock <= x.MinimumStock || x.ExpiryDate <= DateTime.Today.AddMonths(3)))
         .Select(x => new
@@ -40,6 +41,30 @@
     <div class="pharmacy-stat accent-amber"><span>Sắp hết</span><strong>@lowStock</strong><small>Dưới mức tối thiểu</small></div>
     <div class="pharmacy-stat accent-blue"><span>Giá trị tồn</span><strong>@inventoryValue.ToString("N0") đ</strong><small>Tạm tính theo đơn giá</small></div>
 </section>
+
+@if (forecasts.Any())
+{
+    <section class="panel algorithm-panel">
+        <div class="panel-head">
+            <div>
+                <span class="eyebrow">Moving Average</span>
+                <h2>Dự báo tồn kho 30 ngày</h2>
+                <p>Ước tính ngày hết hàng từ mức xuất thuốc trung bình mỗi ngày.</p>
+            </div>
+        </div>
+        <div class="forecast-grid">
+            @foreach (var item in forecasts)
+            {
+                var riskClass = item.RiskLevel == "Critical" ? "is-critical" : item.RiskLevel == "Warning" ? "is-low" : "is-stable";
+                <article class="forecast-card @riskClass">
+                    <strong>@item.Medicine.Name</strong>
+                    <span>@item.AverageDailyUsage.ToString("0.##") @item.Medicine.Unit/ngày</span>
+                    <small>@(item.EstimatedRunoutDate.HasValue ? $"Dự kiến hết: {item.EstimatedRunoutDate:dd/MM/yyyy}" : "Chưa đủ dữ liệu xuất kho")</small>
+                </article>
+            }
+        </div>
+    </section>
+}
 
 @if (urgentMedicines.Any())
 {
@@ -119,7 +144,7 @@
     <div class="panel-head pharmacy-toolbar-head">
         <div>
             <h2>Danh sách kho thuốc</h2>
-            <p>@totalItems mặt hàng. Có @lowStock sắp hết, @expiringSoon sắp hết hạn và @expired đã hết hạn.</p>
+            <p>@totalItems mặt hàng. Có @lowStock sắp hết, @expiringSoon sắp hết hạn và @expired đã hết hạn. Tìm kiếm dùng Levenshtein Distance.</p>
         </div>
         <div class="pharmacy-toolbar">
             <input class="form-control" id="medicineSearch" placeholder="Tìm mã thuốc, tên thuốc, đơn vị..." />
